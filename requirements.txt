@@ -1,0 +1,9 @@
+alpaca-py
+anthropic
+apscheduler
+fastapi
+matplotlib
+numpy
+resend
+uvicorn
+python-dotenv
