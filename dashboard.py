@@ -548,8 +548,10 @@ function renderHistory(entries) {
     allSymbols.forEach(sym => { driftData[sym] = days.map(d => d.drift_from_target?.[sym] ?? null); });
     mkDriftChart(days.map(d => fmtDateShort(d.timestamp)), driftData);
   } else {
-    document.getElementById('valueChart').parentElement.innerHTML = '<div class="loading">Not enough data yet — charts appear after a few contribution cycles.</div>';
-    document.getElementById('driftChart').parentElement.innerHTML = '<div class="loading">Not enough data yet.</div>';
+    const vc = document.getElementById('valueChart');
+    if (vc) vc.parentElement.innerHTML = '<div class="loading">Not enough data yet — charts appear after a few contribution cycles.</div>';
+    const dc = document.getElementById('driftChart');
+    if (dc) dc.parentElement.innerHTML = '<div class="loading">Not enough data yet.</div>';
   }
 
   // Target weight history chart
@@ -564,7 +566,8 @@ function renderHistory(entries) {
     });
     mkTargetChart(targetLabels, targetData);
   } else {
-    document.getElementById('targetChart').parentElement.innerHTML = '<div class="loading">Target weight history will appear after multiple dynamic allocations.</div>';
+    const tc = document.getElementById('targetChart');
+    if (tc) tc.parentElement.innerHTML = '<div class="loading">Target weight history will appear after multiple dynamic allocations.</div>';
   }
 
   // Contributions
