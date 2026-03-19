@@ -97,7 +97,7 @@ Respond ONLY with valid JSON — no markdown, no code fences:
     for attempt in range(3):
         try:
             response = ai_client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model="claude-sonnet-4-6-20250514",
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
             )
