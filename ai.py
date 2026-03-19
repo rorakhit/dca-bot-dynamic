@@ -71,7 +71,7 @@ Base target allocation (starting point):
 {json.dumps(BASE_TARGET_ALLOCATION, indent=2)}
 
 Weight bounds (your adjusted targets MUST stay within these ranges):
-{json.dumps({{sym: {{"min": lo, "max": hi}} for sym, (lo, hi) in WEIGHT_BOUNDS.items()}}, indent=2)}
+{json.dumps({sym: {"min": lo, "max": hi} for sym, (lo, hi) in WEIGHT_BOUNDS.items()}, indent=2)}
 
 Market data (3-month lookback):
 {json.dumps(market_stats, indent=2)}
