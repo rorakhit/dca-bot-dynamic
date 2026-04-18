@@ -2,9 +2,12 @@
 scheduler_jobs.py — All scheduled jobs for the DCA Dynamic bot.
 
 Jobs:
-  - scheduled_contribution: 10am ET on 1st/16th — fetch data, compute both strategies, auto-execute dynamic
+  - scheduled_contribution: 10am ET on 1st/16th — fetch data, compute both strategies, send approval email
+  - expire_pending: 3:30pm ET on 1st/16th — drop any approvals the user didn't act on
   - contribution_reminder: 9am on 15th/last — email reminder to fund account
   - dca_contribution_report: noon on 1st/16th — email report with both strategies
+
+⚠️ LIVE TRADING — orders only execute after the user clicks Approve in the email.
 """
 
 import base64
@@ -21,10 +24,14 @@ from ai import (
     ask_ai_for_dynamic_allocation,
     compute_fixed_strategy_allocation,
 )
+from approval import (
+    _save_pending,
+    create_pending_approval,
+    pending_approvals,
+)
 from audit import get_audit_history_summary, read_audit_log, write_audit_entry
 from broker import (
     broker,
-    execute_allocations,
     fetch_market_data,
     get_portfolio_state,
     is_trading_day,
@@ -44,7 +51,7 @@ from email_service import _send_email, send_error_email
 
 async def scheduled_contribution():
     """
-    Full contribution cycle:
+    Full contribution cycle (LIVE TRADING):
       1. Check if trading day
       2. Check cash balance >= CONTRIBUTION_AMOUNT
       3. Get portfolio state
@@ -52,7 +59,7 @@ async def scheduled_contribution():
       5. Get audit history
       6. Compute fixed counterfactual, log it
       7. Ask AI for dynamic allocation, validate, log it
-      8. Auto-execute orders (paper trading — no approval flow)
+      8. Send approval email — orders stay pending until user clicks Approve
     """
     today = datetime.now(ET).date()
 
@@ -108,19 +115,43 @@ async def scheduled_contribution():
         log.info(f"Dynamic strategy: targets={dynamic_result['adjusted_targets']}, "
                  f"allocations={dynamic_result['allocations']}")
 
-        # Step 8: Auto-execute (paper trading — no approval needed)
-        receipts = execute_allocations(dynamic_result["allocations"], dry_run=False)
-        write_audit_entry("orders_placed", {
-            "receipts": receipts,
-            "strategy": "dynamic",
-            "executed_by": "auto_paper_trading",
-        })
-        log.info(f"Orders auto-executed (paper): {receipts}")
+        # Step 8: Send approval email — nothing executes until user clicks Approve
+        create_pending_approval(
+            allocations=dynamic_result["allocations"],
+            allocation_reasoning=dynamic_result["allocation_reasoning"],
+            adjusted_targets=dynamic_result["adjusted_targets"],
+            weight_reasoning=dynamic_result["weight_reasoning"],
+            new_cash=CONTRIBUTION_AMOUNT,
+        )
+        log.info("Approval email sent — awaiting user click to execute orders")
 
     except Exception as exc:
         log.exception(f"scheduled_contribution failed: {exc}")
         write_audit_entry("contribution_error", {"error": str(exc), "new_cash": CONTRIBUTION_AMOUNT})
         send_error_email(f"scheduled_contribution(${CONTRIBUTION_AMOUNT:.2f})", exc)
+
+
+# ─────────────────────────────────────────────
+# EXPIRE PENDING APPROVALS (3:30pm ET, 1st & 16th)
+# ─────────────────────────────────────────────
+
+async def expire_pending():
+    """Clean up any tokens the user didn't act on before 3:30pm ET."""
+    expired = [
+        t for t, v in pending_approvals.items()
+        if datetime.now(ET) > datetime.fromisoformat(v["expires_at"])
+    ]
+    for token in expired:
+        data = pending_approvals.pop(token)
+        write_audit_entry("approval_expired", {
+            "token_prefix": token[:8],
+            "allocations": data["allocations"],
+            "adjusted_targets": data.get("adjusted_targets", {}),
+        })
+        log.info(f"Approval expired — token {token[:8]}…")
+
+    if expired:
+        _save_pending(pending_approvals)
 
 
 # ─────────────────────────────────────────────
@@ -137,15 +168,15 @@ def contribution_reminder():
     <h2 style="color:#2563eb;margin:0 0 12px">💰 DCA Dynamic Reminder — {today}</h2>
     <p style="margin:0 0 8px">
       Time to transfer <strong>${CONTRIBUTION_AMOUNT:.0f}</strong> into your Alpaca
-      <strong>paper</strong> account so the dynamic allocation experiment can run
-      on the next contribution day (1st or 16th).
+      live account so the dynamic allocation bot can propose a buy on the next
+      contribution day (1st or 16th).
     </p>
     <p style="font-size:13px;color:#6b7280;margin:12px 0 0">
-      🧪 Paper trading mode — the bot will auto-execute using AI-adjusted targets.
+      💵 Live trading — you'll get an approve/deny email before any orders execute.
     </p>
   </div>
 </body></html>"""
-    _send_email(f"💰 DCA Dynamic — Fund paper account (${CONTRIBUTION_AMOUNT:.0f})", html)
+    _send_email(f"💰 DCA Dynamic — Fund account (${CONTRIBUTION_AMOUNT:.0f})", html)
     log.info("Contribution reminder email sent")
 
 
@@ -305,14 +336,14 @@ def dca_contribution_report():
   .footer{{text-align:center;font-size:12px;color:#9ca3af;margin-top:8px;padding-bottom:20px}}
   img{{max-width:100%;border-radius:8px;display:block}}
   .badge{{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600}}
-  .badge-paper{{background:#fef3c7;color:#92400e}}
+  .badge-live{{background:#dcfce7;color:#166534}}
   .badge-dynamic{{background:#ede9fe;color:#5b21b6}}
 </style></head>
 <body>
 <div class="wrap">
   <div class="header">
-    <h1>🧪 DCA Dynamic Report</h1>
-    <p>{date_str} &nbsp;·&nbsp; <span class="badge badge-paper">Paper</span> <span class="badge badge-dynamic">Dynamic</span></p>
+    <h1>📊 DCA Dynamic Report</h1>
+    <p>{date_str} &nbsp;·&nbsp; <span class="badge badge-live">Live</span> <span class="badge badge-dynamic">Dynamic</span></p>
   </div>
   <div class="card">
     <div class="stat-row">
@@ -334,7 +365,7 @@ def dca_contribution_report():
     </table>
   </div>
   <div class="card">
-    <h2>🤖 Dynamic AI Allocation (Executed)</h2>
+    <h2>🤖 Dynamic AI Allocation (Proposed — pending approval)</h2>
     <div class="ai-box">{dynamic_reasoning}</div>
     <table>
       <tr><th>Symbol</th><th>Allocated</th><th>Adj. Target</th></tr>
@@ -349,9 +380,9 @@ def dca_contribution_report():
       {fixed_alloc_rows}
     </table>
   </div>
-  <div class="footer">DCA Dynamic 🧪 &nbsp;·&nbsp; Paper Trading &nbsp;·&nbsp; Runs 1st &amp; 16th</div>
+  <div class="footer">DCA Dynamic &nbsp;·&nbsp; Live Trading &nbsp;·&nbsp; Runs 1st &amp; 16th</div>
 </div>
 </body></html>"""
 
-    _send_email(f"🧪 DCA Dynamic Report — {date_str}", html)
+    _send_email(f"📊 DCA Dynamic Report — {date_str}", html)
     log.info("DCA contribution report email sent")

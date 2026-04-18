@@ -1,7 +1,8 @@
 """
-email_service.py — Resend email helper + email templates.
+email_service.py — Resend email helper + error email template.
 
-No approval emails — paper trading auto-executes all orders.
+Approval emails live in approval.py. This module handles transport and error
+notifications only.
 """
 
 import resend
@@ -42,7 +43,7 @@ def send_error_email(context: str, error: Exception):
     <pre style="background:#fff;border-radius:8px;padding:12px;font-size:12px;
                 overflow-x:auto;white-space:pre-wrap">{type(error).__name__}: {error}</pre>
     <p style="font-size:12px;color:#6b7280;margin:12px 0 0">
-      Paper trading experiment. Check <code>logs/dca_bot.log</code> for details.
+      Live trading. Check <code>logs/dca_bot.log</code> for details.
     </p>
   </div>
 </body></html>"""

@@ -2,31 +2,38 @@
 routes.py — All FastAPI route handlers for the DCA Dynamic bot.
 
 Endpoints:
-  GET  /            — desktop dashboard
-  GET  /dashboard   — mobile dashboard
-  GET  /health      — server status (paper_trading: true, strategy: "dynamic")
-  GET  /portfolio   — current holdings
-  GET  /audit       — audit log
-  GET  /comparison  — A/B strategy comparison data
-  POST /contribute  — manual trigger
+  GET  /                — desktop dashboard
+  GET  /dashboard       — mobile dashboard
+  GET  /health          — server status (paper_trading: false, strategy: "dynamic")
+  GET  /portfolio       — current holdings
+  GET  /audit           — audit log
+  GET  /comparison      — A/B strategy comparison data
+  GET  /pending         — view pending approvals
+  GET  /approve/{token} — approve a pending allocation (executes orders)
+  GET  /deny/{token}    — deny a pending allocation
+  POST /contribute      — manual trigger (sends approval email unless dry_run=true)
 """
 
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from ai import compute_fixed_strategy_allocation
+from ai import ask_ai_for_dynamic_allocation, compute_fixed_strategy_allocation
+from approval import (
+    create_pending_approval,
+    handle_approval,
+    handle_denial,
+    pending_approvals,
+)
 from audit import get_audit_history_summary, read_audit_log, write_audit_entry
 from broker import (
     broker,
-    execute_allocations,
     fetch_market_data,
     get_portfolio_state,
     is_market_open,
     is_trading_day,
 )
-from ai import ask_ai_for_dynamic_allocation
 from config import BASE_TARGET_ALLOCATION, CONTRIBUTION_AMOUNT, ET, log
 from dashboard import DASHBOARD_HTML, LANDING_HTML
 
@@ -55,7 +62,7 @@ def dashboard():
 
 def health(scheduler=None):
     """
-    Quick status check with paper trading and dynamic strategy indicators.
+    Quick status check — live trading, dynamic strategy, pending approval count.
     """
     errors = []
     account_value = None
@@ -75,10 +82,11 @@ def health(scheduler=None):
     return JSONResponse({
         "status": "ok" if not errors else "degraded",
         "errors": errors,
-        "paper_trading": True,
+        "paper_trading": False,
         "strategy": "dynamic",
         "market_open": is_market_open(),
         "trading_day": is_trading_day(),
+        "pending_approvals": len(pending_approvals),
         "next_contribution": next_run,
         "account_value_usd": account_value,
         "server_time_et": datetime.now(ET).isoformat(),
@@ -138,6 +146,34 @@ def strategy_comparison():
 
 
 # ─────────────────────────────────────────────
+# PENDING APPROVALS
+# ─────────────────────────────────────────────
+
+@router.get("/pending")
+def list_pending():
+    """See what approvals are currently waiting."""
+    return {k[:8]: v for k, v in pending_approvals.items()}
+
+
+@router.get("/approve/{token}", response_class=HTMLResponse)
+async def approve(token: str):
+    """User clicks Approve in email -> orders execute immediately."""
+    result = handle_approval(token)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Token not found or already used.")
+    return HTMLResponse(result)
+
+
+@router.get("/deny/{token}", response_class=HTMLResponse)
+async def deny(token: str):
+    """User clicks Deny in email -> allocation discarded."""
+    result = handle_denial(token)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Token not found or already used.")
+    return HTMLResponse(result)
+
+
+# ─────────────────────────────────────────────
 # MANUAL CONTRIBUTION
 # ─────────────────────────────────────────────
 
@@ -145,7 +181,10 @@ def strategy_comparison():
 async def manual_contribution(amount: float = CONTRIBUTION_AMOUNT, dry_run: bool = True):
     """
     Manually trigger a contribution cycle.
-    POST /contribute?amount=100&dry_run=true
+      POST /contribute?amount=100&dry_run=true   — propose, return, no email, no orders
+      POST /contribute?amount=100&dry_run=false  — propose, send approval email, wait for click
+
+    Orders never execute without a user-approved email click — same gate as scheduled runs.
     """
     log.info(f"Manual contribution: ${amount:.2f} | dry_run={dry_run}")
 
@@ -182,7 +221,7 @@ async def manual_contribution(amount: float = CONTRIBUTION_AMOUNT, dry_run: bool
         })
 
         if dry_run:
-            log.info("Dry run — skipping order execution")
+            log.info("Dry run — skipping approval email and orders")
             return {
                 "status": "done",
                 "dry_run": True,
@@ -190,20 +229,21 @@ async def manual_contribution(amount: float = CONTRIBUTION_AMOUNT, dry_run: bool
                 "fixed": fixed_result,
             }
 
-        # Execute dynamic allocation (paper trading)
-        receipts = execute_allocations(dynamic_result["allocations"], dry_run=False)
-        write_audit_entry("orders_placed", {
-            "receipts": receipts,
-            "strategy": "dynamic",
-            "executed_by": "manual_trigger",
-        })
+        # Send approval email — orders execute only if user clicks Approve
+        token = create_pending_approval(
+            allocations=dynamic_result["allocations"],
+            allocation_reasoning=dynamic_result["allocation_reasoning"],
+            adjusted_targets=dynamic_result["adjusted_targets"],
+            weight_reasoning=dynamic_result["weight_reasoning"],
+            new_cash=amount,
+        )
 
         return {
-            "status": "done",
+            "status": "pending_approval",
             "dry_run": False,
+            "token_prefix": token[:8],
             "dynamic": dynamic_result,
             "fixed": fixed_result,
-            "receipts": receipts,
         }
 
     except Exception as exc:

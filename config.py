@@ -59,6 +59,7 @@ ET = ZoneInfo("America/New_York")
 
 BASE_DIR = Path(__file__).parent
 AUDIT_LOG_PATH = BASE_DIR / "audit_log.jsonl"
+PENDING_STORE_PATH = BASE_DIR / "pending_approvals.json"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 

@@ -1,7 +1,7 @@
 """
 broker.py — Alpaca client, portfolio state, order execution, market data.
 
-⚠️ PAPER TRADING MODE — dynamic allocation experiment
+⚠️ LIVE TRADING — real money. Orders only execute after email approval.
 """
 
 from datetime import date, datetime, timedelta
@@ -25,13 +25,13 @@ from config import (
 )
 
 # ─────────────────────────────────────────────
-# CLIENTS — paper=True HARDCODED, never live
+# CLIENTS — paper=False (LIVE). Orders gated by email approval.
 # ─────────────────────────────────────────────
 
-broker = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
+broker = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=False)
 data_client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
 
-log.warning("⚠️ PAPER TRADING MODE — dynamic allocation experiment")
+log.warning("⚠️ LIVE TRADING MODE — orders require email approval")
 
 
 # ─────────────────────────────────────────────
@@ -68,6 +68,11 @@ def is_market_open() -> bool:
     market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
     market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
     return market_open <= now < market_close
+
+
+def approval_deadline() -> datetime:
+    """3:30pm ET today — 30 min before close, last sensible time to approve."""
+    return datetime.now(ET).replace(hour=15, minute=30, second=0, microsecond=0)
 
 
 # ─────────────────────────────────────────────
