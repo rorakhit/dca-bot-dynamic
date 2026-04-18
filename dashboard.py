@@ -492,7 +492,7 @@ function renderPortfolio(p, health) {
   const nextPill = health.next_contribution
     ? `<span class="pill muted">Next run: ${fmtTs(health.next_contribution)}</span>` : '';
   bar.innerHTML = marketPill
-    + '<span class="pill yellow">Paper</span>'
+    + '<span class="pill red">Live</span>'
     + '<span class="pill purple">Dynamic</span>'
     + nextPill;
 
@@ -1006,7 +1006,7 @@ function renderPortfolio(p, health) {
     ? `<span class="pill" style="background:#1e1e2e;color:#a0aec0">Next: ${fmtTs(health.next_contribution)}</span>`
     : '';
   bar.innerHTML = marketPill
-    + '<span class="pill yellow">Paper</span>'
+    + '<span class="pill red">Live</span>'
     + '<span class="pill purple">Dynamic</span>'
     + nextPill;
 
