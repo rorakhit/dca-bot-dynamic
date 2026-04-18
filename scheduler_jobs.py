@@ -2,10 +2,10 @@
 scheduler_jobs.py — All scheduled jobs for the DCA Dynamic bot.
 
 Jobs:
-  - scheduled_contribution: 10am ET on 1st/16th — fetch data, compute both strategies, send approval email
+  - scheduled_contribution: 10am ET on 1st/16th — fetch data, compute dynamic allocation, send approval email
   - expire_pending: 3:30pm ET on 1st/16th — drop any approvals the user didn't act on
   - contribution_reminder: 9am on 15th/last — email reminder to fund account
-  - dca_contribution_report: noon on 1st/16th — email report with both strategies
+  - dca_contribution_report: noon on 1st/16th — email portfolio report
 
 ⚠️ LIVE TRADING — orders only execute after the user clicks Approve in the email.
 """
@@ -20,10 +20,7 @@ matplotlib.use("Agg")
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
-from ai import (
-    ask_ai_for_dynamic_allocation,
-    compute_fixed_strategy_allocation,
-)
+from ai import ask_ai_for_dynamic_allocation
 from approval import (
     _save_pending,
     create_pending_approval,
@@ -57,9 +54,8 @@ async def scheduled_contribution():
       3. Get portfolio state
       4. Fetch market data
       5. Get audit history
-      6. Compute fixed counterfactual, log it
-      7. Ask AI for dynamic allocation, validate, log it
-      8. Send approval email — orders stay pending until user clicks Approve
+      6. Ask AI for dynamic allocation, validate, log it
+      7. Send approval email — orders stay pending until user clicks Approve
     """
     today = datetime.now(ET).date()
 
@@ -91,17 +87,7 @@ async def scheduled_contribution():
         # Step 5: Audit history for AI context
         audit_history = get_audit_history_summary(max_entries=10)
 
-        # Step 6: Fixed counterfactual (A/B baseline)
-        fixed_result = compute_fixed_strategy_allocation(portfolio, CONTRIBUTION_AMOUNT)
-        write_audit_entry("fixed_counterfactual_logged", {
-            "allocations": fixed_result["allocations"],
-            "reasoning": fixed_result["reasoning"],
-            "target_allocation": fixed_result["target_allocation"],
-            "new_cash": CONTRIBUTION_AMOUNT,
-        })
-        log.info(f"Fixed strategy counterfactual: {fixed_result['allocations']}")
-
-        # Step 7: Dynamic AI allocation
+        # Step 6: Dynamic AI allocation
         dynamic_result = ask_ai_for_dynamic_allocation(
             portfolio, CONTRIBUTION_AMOUNT, market_stats, audit_history
         )
@@ -115,7 +101,7 @@ async def scheduled_contribution():
         log.info(f"Dynamic strategy: targets={dynamic_result['adjusted_targets']}, "
                  f"allocations={dynamic_result['allocations']}")
 
-        # Step 8: Send approval email — nothing executes until user clicks Approve
+        # Step 7: Send approval email — nothing executes until user clicks Approve
         create_pending_approval(
             allocations=dynamic_result["allocations"],
             allocation_reasoning=dynamic_result["allocation_reasoning"],
@@ -185,7 +171,7 @@ def contribution_reminder():
 # ─────────────────────────────────────────────
 
 def dca_contribution_report():
-    """Generate and email a portfolio report with both dynamic and fixed strategy results."""
+    """Generate and email a portfolio report with the latest dynamic allocation proposal."""
     account = broker.get_account()
     positions = broker.get_all_positions()
 
@@ -276,14 +262,6 @@ def dca_contribution_report():
             dynamic_targets = e.get("adjusted_targets", {})
             break
 
-    fixed_reasoning = "No fixed counterfactual found for this cycle."
-    fixed_allocations = {}
-    for e in entries:
-        if e.get("event") == "fixed_counterfactual_logged":
-            fixed_reasoning = e.get("reasoning", "")
-            fixed_allocations = e.get("allocations", {})
-            break
-
     # Build HTML email
     date_str = datetime.now(ET).strftime("%B %-d, %Y")
     pl_color = "#10b981" if total_pl >= 0 else "#ef4444"
@@ -310,10 +288,6 @@ def dca_contribution_report():
         target_pct = dynamic_targets.get(sym, BASE_TARGET_ALLOCATION.get(sym, 0))
         dynamic_alloc_rows += f'<tr><td><strong>{sym}</strong></td><td>${float(amt):.2f}</td><td>{target_pct*100:.1f}%</td></tr>'
 
-    fixed_alloc_rows = ""
-    for sym, amt in fixed_allocations.items():
-        fixed_alloc_rows += f'<tr><td><strong>{sym}</strong></td><td>${float(amt):.2f}</td></tr>'
-
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><style>
   body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f3f4f6;margin:0;padding:20px;color:#111827}}
@@ -332,7 +306,6 @@ def dca_contribution_report():
   td{{padding:10px 12px;border-bottom:1px solid #f3f4f6}}
   tr:last-child td{{border-bottom:none}}
   .ai-box{{background:#f5f3ff;border-left:4px solid #7c3aed;padding:16px;border-radius:0 8px 8px 0;font-size:14px;color:#374151;line-height:1.6;margin-bottom:16px}}
-  .fixed-box{{background:#fff7ed;border-left:4px solid #f97316;padding:16px;border-radius:0 8px 8px 0;font-size:14px;color:#374151;line-height:1.6;margin-bottom:16px}}
   .footer{{text-align:center;font-size:12px;color:#9ca3af;margin-top:8px;padding-bottom:20px}}
   img{{max-width:100%;border-radius:8px;display:block}}
   .badge{{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600}}
@@ -370,14 +343,6 @@ def dca_contribution_report():
     <table>
       <tr><th>Symbol</th><th>Allocated</th><th>Adj. Target</th></tr>
       {dynamic_alloc_rows}
-    </table>
-  </div>
-  <div class="card">
-    <h2>📊 Fixed Strategy Counterfactual</h2>
-    <div class="fixed-box">{fixed_reasoning}</div>
-    <table>
-      <tr><th>Symbol</th><th>Would Have Allocated</th></tr>
-      {fixed_alloc_rows}
     </table>
   </div>
   <div class="footer">DCA Dynamic &nbsp;·&nbsp; Live Trading &nbsp;·&nbsp; Runs 1st &amp; 16th</div>

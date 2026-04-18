@@ -7,7 +7,6 @@ Endpoints:
   GET  /health          — server status (paper_trading: false, strategy: "dynamic")
   GET  /portfolio       — current holdings
   GET  /audit           — audit log
-  GET  /comparison      — A/B strategy comparison data
   GET  /pending         — view pending approvals
   GET  /approve/{token} — approve a pending allocation (executes orders)
   GET  /deny/{token}    — deny a pending allocation
@@ -19,7 +18,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from ai import ask_ai_for_dynamic_allocation, compute_fixed_strategy_allocation
+from ai import ask_ai_for_dynamic_allocation
 from approval import (
     create_pending_approval,
     handle_approval,
@@ -110,41 +109,6 @@ def audit_log():
     return read_audit_log()
 
 
-@router.get("/comparison")
-def strategy_comparison():
-    """
-    Return A/B strategy comparison data from the audit log.
-    Pairs dynamic and fixed allocations by date for side-by-side comparison.
-    """
-    entries = read_audit_log()  # newest first
-
-    # Collect dynamic and fixed entries, pair them by date
-    dynamic_entries = [e for e in entries if e.get("event") == "dynamic_allocation_proposed"]
-    fixed_entries = [e for e in entries if e.get("event") == "fixed_counterfactual_logged"]
-
-    # Build lookup by date for fixed entries
-    fixed_by_date = {}
-    for e in fixed_entries:
-        day = e.get("timestamp", "")[:10]
-        if day not in fixed_by_date:
-            fixed_by_date[day] = e
-
-    comparison = []
-    for dyn in dynamic_entries[:20]:  # last 20 cycles
-        day = dyn.get("timestamp", "")[:10]
-        fixed = fixed_by_date.get(day, {})
-
-        comparison.append({
-            "date": dyn.get("timestamp", ""),
-            "dynamic_targets": dyn.get("adjusted_targets"),
-            "dynamic_allocations": dyn.get("allocations"),
-            "fixed_allocations": fixed.get("allocations"),
-            "reasoning": dyn.get("weight_reasoning", ""),
-        })
-
-    return comparison
-
-
 # ─────────────────────────────────────────────
 # PENDING APPROVALS
 # ─────────────────────────────────────────────
@@ -199,15 +163,6 @@ async def manual_contribution(amount: float = CONTRIBUTION_AMOUNT, dry_run: bool
         # Audit history for AI context
         audit_history = get_audit_history_summary(max_entries=10)
 
-        # Fixed counterfactual
-        fixed_result = compute_fixed_strategy_allocation(portfolio, amount)
-        write_audit_entry("fixed_counterfactual_logged", {
-            "allocations": fixed_result["allocations"],
-            "reasoning": fixed_result["reasoning"],
-            "target_allocation": fixed_result["target_allocation"],
-            "new_cash": amount,
-        })
-
         # Dynamic AI allocation
         dynamic_result = ask_ai_for_dynamic_allocation(
             portfolio, amount, market_stats, audit_history
@@ -226,7 +181,6 @@ async def manual_contribution(amount: float = CONTRIBUTION_AMOUNT, dry_run: bool
                 "status": "done",
                 "dry_run": True,
                 "dynamic": dynamic_result,
-                "fixed": fixed_result,
             }
 
         # Send approval email — orders execute only if user clicks Approve
@@ -243,7 +197,6 @@ async def manual_contribution(amount: float = CONTRIBUTION_AMOUNT, dry_run: bool
             "dry_run": False,
             "token_prefix": token[:8],
             "dynamic": dynamic_result,
-            "fixed": fixed_result,
         }
 
     except Exception as exc:

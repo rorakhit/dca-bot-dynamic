@@ -1,24 +1,20 @@
-# DCA Bot Dynamic ⚡🧪📈
+# DCA Bot Dynamic ⚡📈
 
-An experimental variant of [dca-bot](https://github.com/rorakhit/dca-bot) that uses AI to dynamically adjust portfolio target weights based on 3-month market data, momentum, and volatility. Runs on **paper trading only** for safe experimentation.
+A DCA bot that uses AI to dynamically adjust portfolio target weights each cycle based on 3-month market data, momentum, and volatility. Runs on **live trading** with an email approval gate — no orders execute until you click Approve.
 
 **Live dashboard:** [dca-bot-dynamic.up.railway.app](https://dca-bot-dynamic.up.railway.app)
 
-> **⚠️ Paper trading only.** This bot never touches real money. It runs alongside the fixed-target bot to compare strategies.
+> **💵 Live trading.** Every proposed allocation sends an approval email. Orders only execute after you click the Approve link; unacted approvals expire at 3:30pm ET the same day.
 
 ## How it works
 
 1. **Scheduler fires** at 10am ET on the 1st and 16th
-2. **Fetches portfolio state** from Alpaca (paper account)
+2. **Fetches portfolio state** from Alpaca (live account)
 3. **Pulls 3-month market data** — daily bars, returns, volatility, momentum for each holding
 4. **Asks Claude to adjust target weights** (±10% from base) based on market conditions
 5. **Allocates the contribution** using the adjusted targets to minimise drift
-6. **Auto-executes** paper trades (no approval needed — it's not real money)
-7. **Logs both strategies** — what the dynamic bot did AND what the fixed-target bot would have done
-
-## A/B Comparison
-
-Every cycle logs a counterfactual: the fixed-target allocation that the original bot would have made. Over time, you can compare performance between strategies via the dashboard or `/comparison` endpoint.
+6. **Sends approval email** — orders are held in a pending state until you click Approve
+7. **Expires pending approvals** at 3:30pm ET if not acted on, so stale proposals never execute
 
 ## Base Portfolio
 
@@ -32,24 +28,27 @@ Every cycle logs a counterfactual: the fixed-target allocation that the original
 ## Features
 
 - **Dynamic target weights** — Claude adjusts targets each cycle based on momentum and risk
-- **A/B comparison logging** — every cycle logs both dynamic and fixed-target strategies
+- **Email approval gate** — no orders execute without your explicit click
 - **Market data analysis** — 3-month returns, volatility, Sharpe ratio, momentum signals
-- **Desktop dashboard** with strategy comparison cards
+- **Desktop dashboard** at `/`
 - **Mobile dashboard** at `/dashboard`
-- **Paper trading safety** — hardcoded to never use live credentials
+- **Expiry safeguard** — unacted proposals auto-expire at 3:30pm ET
 
 ## Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /` | Desktop dashboard with strategy comparison |
+| `GET /` | Desktop dashboard |
 | `GET /dashboard` | Mobile dashboard |
 | `GET /portfolio` | Current holdings and allocation JSON |
-| `GET /health` | Server status, paper trading confirmation |
+| `GET /health` | Server status, pending approval count |
 | `GET /audit` | Full audit log as JSON |
-| `GET /comparison` | A/B strategy comparison data |
-| `POST /contribute?amount=100&dry_run=false` | Manually trigger a contribution |
+| `GET /pending` | Approval tokens currently awaiting a click |
+| `GET /approve/{token}` | Approve a pending allocation (executes orders) |
+| `GET /deny/{token}` | Deny a pending allocation |
+| `POST /contribute?amount=100&dry_run=true` | Manually propose (no email, no orders) |
+| `POST /contribute?amount=100&dry_run=false` | Manually propose + send approval email |
 
 ## Disclaimer
 
-This is an experiment. Paper trading only. Not financial advice.
+Not financial advice. Trades real money — review every approval email carefully before clicking.

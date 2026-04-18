@@ -47,7 +47,6 @@ def get_audit_history_summary(max_entries: int = 10) -> list[dict]:
                 if entry.get("event") in (
                     "portfolio_snapshot",
                     "dynamic_allocation_proposed",
-                    "fixed_counterfactual_logged",
                     "orders_placed",
                 ):
                     entries.append(entry)

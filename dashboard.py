@@ -190,30 +190,6 @@ LANDING_HTML = """<!DOCTYPE html>
     .chart-wrap { position: relative; height: 260px; }
     .chart-wrap-sm { position: relative; height: 220px; }
 
-    /* ── Strategy comparison table ── */
-    .comparison-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    .comparison-table th {
-      background: rgba(255,255,255,0.04);
-      padding: 10px 12px;
-      text-align: left;
-      color: #64748b;
-      font-weight: 600;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .comparison-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      color: #94a3b8;
-    }
-    .comparison-table tr:last-child td { border-bottom: none; }
-    .comparison-table .sym { color: #a855f7; font-weight: 600; }
-
     /* ── Contribution history ── */
     .contribution-list { list-style: none; }
     .contribution-item {
@@ -329,12 +305,6 @@ LANDING_HTML = """<!DOCTYPE html>
       <div class="card-title">Recent activity</div>
       <ul class="event-list" id="event-log"><li class="loading">…</li></ul>
     </div>
-  </div>
-
-  <!-- ── Strategy Comparison ── -->
-  <div class="card" id="comparison-card">
-    <div class="card-title">Strategy comparison — Dynamic vs Fixed</div>
-    <div id="comparison-content"><div class="loading">Loading comparison data…</div></div>
   </div>
 
   <!-- ── Target Weight History ── -->
@@ -617,48 +587,16 @@ function renderHistory(entries) {
     </li>`).join('');
 }
 
-function renderComparison(data) {
-  const container = document.getElementById('comparison-content');
-  if (!data || !data.length) {
-    container.innerHTML = '<div class="loading">No comparison data yet — appears after your first contribution cycle.</div>';
-    return;
-  }
-  let html = `<table class="comparison-table">
-    <tr><th>Date</th><th>Dynamic Targets</th><th>Dynamic Allocation</th><th>Fixed Allocation</th><th>Reasoning</th></tr>`;
-  data.forEach(row => {
-    const dynTargets = row.dynamic_targets
-      ? Object.entries(row.dynamic_targets).map(([s,w]) => `<span class="sym">${s}</span> ${(w*100).toFixed(0)}%`).join(', ')
-      : '—';
-    const dynAlloc = row.dynamic_allocations
-      ? Object.entries(row.dynamic_allocations).map(([s,a]) => `<span class="sym">${s}</span> ${fmt(a)}`).join(', ')
-      : '—';
-    const fixedAlloc = row.fixed_allocations
-      ? Object.entries(row.fixed_allocations).map(([s,a]) => `<span class="sym">${s}</span> ${fmt(a)}`).join(', ')
-      : '—';
-    html += `<tr>
-      <td>${fmtDateShort(row.date)}</td>
-      <td>${dynTargets}</td>
-      <td>${dynAlloc}</td>
-      <td>${fixedAlloc}</td>
-      <td style="max-width:300px;font-size:12px;color:#64748b">${row.reasoning || '—'}</td>
-    </tr>`;
-  });
-  html += '</table>';
-  container.innerHTML = html;
-}
-
 async function loadAll() {
   document.getElementById('refresh-btn').textContent = '↻ …';
   try {
-    const [portfolio, health, audit, comparison] = await Promise.all([
+    const [portfolio, health, audit] = await Promise.all([
       fetch('/portfolio').then(r => r.json()),
       fetch('/health').then(r => r.json()),
       fetch('/audit').then(r => r.json()),
-      fetch('/comparison').then(r => r.json()).catch(() => []),
     ]);
     renderPortfolio(portfolio, health);
     renderHistory(audit);
-    renderComparison(comparison);
     document.getElementById('last-updated').textContent =
       'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'});
   } catch(err) {
