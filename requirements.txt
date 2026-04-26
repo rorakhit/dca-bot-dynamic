@@ -8,3 +8,8 @@ numpy
 resend
 uvicorn
 python-dotenv
+plaid-python
+httpx
+python-jose[cryptography]
+pytest
+pytest-asyncio

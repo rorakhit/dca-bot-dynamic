@@ -23,6 +23,19 @@ ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 NOTIFY_EMAIL = os.environ["NOTIFY_EMAIL"]
 resend.api_key = os.environ["RESEND_API_KEY"]
 
+# Plaid credentials (required)
+PLAID_CLIENT_ID = os.environ["PLAID_CLIENT_ID"]
+PLAID_SECRET = os.environ["PLAID_SECRET"]
+PLAID_MANUAL_TRIGGER_TOKEN = os.environ["PLAID_MANUAL_TRIGGER_TOKEN"]
+
+# Plaid runtime config (optional — sensible defaults)
+PLAID_ENV = os.environ.get("PLAID_ENV", "production")
+PAYCHECK_EMPLOYER_KEYWORD = os.environ.get("PAYCHECK_EMPLOYER_KEYWORD", "DATALIGN ADVISOR")
+PAYCHECK_MIN_AMOUNT = float(os.environ.get("PAYCHECK_MIN_AMOUNT", "575.00"))
+ACH_POLL_INTERVAL_SECONDS = int(os.environ.get("ACH_POLL_INTERVAL_SECONDS", "30"))
+ACH_POLL_MAX_MINUTES = int(os.environ.get("ACH_POLL_MAX_MINUTES", "10"))
+PAYCHECK_CANCEL_GRACE_SECONDS = int(os.environ.get("PAYCHECK_CANCEL_GRACE_SECONDS", "300"))
+
 # ─────────────────────────────────────────────
 # CONFIG (non-secret)
 # ─────────────────────────────────────────────
@@ -60,6 +73,7 @@ ET = ZoneInfo("America/New_York")
 BASE_DIR = Path(__file__).parent
 AUDIT_LOG_PATH = BASE_DIR / "audit_log.jsonl"
 PENDING_STORE_PATH = BASE_DIR / "pending_approvals.json"
+PLAID_STORE_PATH = BASE_DIR / "plaid_store.json"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
