@@ -224,3 +224,78 @@ def fetch_market_data(symbols: list[str], lookback_days: int = 90) -> dict:
             log.error(f"Error computing stats for {symbol}: {exc}")
 
     return results
+
+
+# ─────────────────────────────────────────────
+# ACH TRANSFERS (direct REST — alpaca-py has no ACH wrappers)
+# ─────────────────────────────────────────────
+
+import asyncio
+
+import httpx
+
+_ALPACA_BASE = "https://api.alpaca.markets"
+_ALPACA_HEADERS = {
+    "APCA-API-KEY-ID": ALPACA_API_KEY,
+    "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
+}
+
+
+def get_ach_relationship_id() -> str:
+    """Return the ID of the first APPROVED ACH relationship on the live Alpaca account."""
+    with httpx.Client() as client:
+        resp = client.get(
+            f"{_ALPACA_BASE}/v2/account/ach/relationships",
+            headers=_ALPACA_HEADERS,
+        )
+    resp.raise_for_status()
+    approved = [r for r in resp.json() if r.get("status") == "APPROVED"]
+    if not approved:
+        raise RuntimeError("No approved ACH relationships on Alpaca account")
+    return approved[0]["id"]
+
+
+def initiate_ach_transfer(relationship_id: str, amount: float) -> dict:
+    """
+    Pull `amount` USD from the linked bank into the live Alpaca account via ACH.
+    Returns the transfer response dict from Alpaca.
+    """
+    with httpx.Client() as client:
+        resp = client.post(
+            f"{_ALPACA_BASE}/v2/account/ach/transfers",
+            headers=_ALPACA_HEADERS,
+            json={
+                "transfer_type": "ach",
+                "relationship_id": relationship_id,
+                "amount": f"{amount:.2f}",
+                "direction": "INCOMING",
+            },
+        )
+    resp.raise_for_status()
+    return resp.json()
+
+
+async def poll_for_buying_power(
+    required_amount: float,
+    interval_seconds: int,
+    max_minutes: int,
+) -> bool:
+    """
+    Poll Alpaca account cash every `interval_seconds` until it increases by at least
+    `required_amount` (1-cent tolerance). Returns True if available; False if timed out.
+
+    Alpaca offers instant buying power up to $1,000 for linked accounts, so $100
+    typically clears within seconds. Max wait: max_minutes * 60 seconds.
+    """
+    baseline = float(broker.get_account().cash)
+    max_polls = (max_minutes * 60) // interval_seconds
+
+    for _ in range(max_polls):
+        await asyncio.sleep(interval_seconds)
+        current_cash = float(broker.get_account().cash)
+        if current_cash >= baseline + required_amount - 0.01:
+            log.info(f"ACH buying power confirmed: ${current_cash:.2f} (baseline ${baseline:.2f})")
+            return True
+
+    log.warning(f"ACH poll timed out after {max_minutes} minutes (baseline ${baseline:.2f})")
+    return False

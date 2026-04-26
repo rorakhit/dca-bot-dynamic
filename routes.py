@@ -72,11 +72,8 @@ def health(scheduler=None):
     except Exception as e:
         errors.append(f"Alpaca: {e}")
 
-    # Find next contribution job run time
-    next_run = None
-    if scheduler:
-        job = scheduler.get_job("scheduled_contribution")
-        next_run = job.next_run_time.isoformat() if job and job.next_run_time else None
+    # Contributions are now event-driven (Plaid paycheck webhook)
+    next_run = "event_driven"
 
     return JSONResponse({
         "status": "ok" if not errors else "degraded",
