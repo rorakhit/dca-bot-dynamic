@@ -83,16 +83,37 @@ If no `dynamic_allocation_proposed` entry exists yet, show a placeholder: `"No a
 
 Second panel in the `2fr 1fr` grid alongside the Claude callout. Desktop: `1fr`. Mobile: full width, below Claude callout.
 
-**Content** (read from `/health` endpoint — no new backend data required):
-- Connection status based on whether `plaid_store` has a non-null `access_token` (surfaced via `/health` as a new `plaid_connected: bool` field):
-  - Green dot + `Paycheck account connected`
-  - Amber dot + `Watching for deposit` (shown when connected)
-  - Red dot + `No account linked` (when `plaid_connected: false`)
-- Next expected payday: formatted date from `health.next_contribution` (already present)
+**Content** (read from `/health` endpoint):
+- Bank name + masked account number (e.g. `Chase ••4521`) when connected
+- Status indicator dot + label:
+  - Green dot + `<Bank> ••<mask> connected`
+  - Amber dot + `Watching for deposit` (always shown when connected, below bank line)
+  - Red dot + `No account linked` (when not connected)
+- Next expected payday: formatted date from `health.next_contribution`
 
-**Required backend change:** Add `plaid_connected: bool` to the `/health` response. One line in `routes.py` — read `get_access_token()` from `plaid_store` and include `"plaid_connected": access_token is not None`.
+**Styling:** Neutral card. Bank name in `#fef3c7`. Status labels in `#94a3b8`. Next payday value in `#fef3c7`.
 
-**Styling:** Neutral card. Status labels in `#94a3b8`. Next payday value in `#fef3c7`.
+### Backend changes required
+
+**`plaid_client.py` — new function `get_account_info(access_token)`:**
+- Calls `/item/get` to retrieve `institution_id`
+- Calls `/institutions/get_by_id` (with `country_codes=["US"]`) to retrieve `institution.name`
+- Calls `/accounts/get` to retrieve the first account's `mask` (last 4 digits)
+- Returns `{"institution_name": str, "account_mask": str}`
+
+**`plaid_store.py` — two new fields:**
+- Add `institution_name: str | None` (default `None`) to the store schema
+- Add `account_mask: str | None` (default `None`) to the store schema
+- Add `set_account_info(institution_name, account_mask)` setter
+- Add `get_account_info()` getter returning `(institution_name, account_mask)`
+
+**`plaid_routes.py` — call after token exchange:**
+- After `set_access_token(access_token)` in `plaid_callback`, call `get_account_info(access_token)` from `plaid_client` and persist with `set_account_info(...)` from `plaid_store`
+- Wrap in try/except — if it fails, log a warning and continue (non-fatal; the access token is already stored)
+
+**`routes.py` — surface in `/health`:**
+- Import `get_account_info` from `plaid_store`
+- Add to health response: `"plaid_institution": institution_name or None`, `"plaid_account_mask": account_mask or None`
 
 ---
 
@@ -143,7 +164,7 @@ All palette and identity changes apply. Structural additions:
 - Allocation rendering logic
 - Contribution history and event log rendering logic
 - `COLORS` constant keys (symbol → colour mapping updated but constant structure unchanged)
-- `/portfolio`, `/health`, `/audit` API contracts
+- `/portfolio`, `/audit` API contracts (`/health` gains two new optional fields)
 - Auto-refresh interval (60s)
 - `dashboard.py` file structure — both templates remain inline string constants
 
@@ -151,6 +172,14 @@ All palette and identity changes apply. Structural additions:
 
 ## Scope
 
-This spec covers `dashboard.py` and one minimal change to `routes.py`. No changes to `app.py`, `scheduler_jobs.py`, `plaid_client.py`, `plaid_routes.py`, or any other file.
+Files touched:
 
-`routes.py` change: add `"plaid_connected": get_access_token() is not None` to the `/health` JSON response. Import `get_access_token` from `plaid_store`.
+| File | Change |
+|---|---|
+| `dashboard.py` | Full restyling of both templates + two new panels |
+| `plaid_client.py` | New `get_account_info(access_token)` function |
+| `plaid_store.py` | Two new fields + getter/setter for institution/mask |
+| `plaid_routes.py` | Call `get_account_info` + `set_account_info` after token exchange |
+| `routes.py` | Add `plaid_institution` + `plaid_account_mask` to `/health` response |
+
+No changes to `app.py`, `scheduler_jobs.py`, `ai.py`, `broker.py`, `approval.py`, or `audit.py`.
