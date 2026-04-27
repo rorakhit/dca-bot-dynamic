@@ -1132,7 +1132,7 @@ function renderPortfolio(p, health) {
     <div class="stat" style="margin-top:8px${pl >= 0 ? ';background:rgba(52,211,153,0.05);border:1px solid rgba(52,211,153,0.15);border-radius:10px;padding:10px;' : ''}">
       <div class="label">Unrealised P&L</div>
       <div class="value ${plClass}">${fmt(pl)}</div>
-      <div style="font-size:10px;color:#34d399;margin-top:2px;">${pl >= 0 ? '+' : ''}${plPct}% all time</div>
+      <div style="font-size:10px;color:${pl >= 0 ? '#34d399' : '#f87171'};margin-top:2px;">${pl >= 0 ? '+' : ''}${plPct}% all time</div>
     </div>
   `;
 
