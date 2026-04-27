@@ -38,6 +38,7 @@ from email_service import _send_email, send_error_email
 from plaid_client import (
     create_link_token,
     exchange_public_token,
+    get_account_info,
     is_paycheck,
     sync_transactions,
     verify_webhook,
@@ -51,6 +52,7 @@ from plaid_store import (
     is_paycheck_processed,
     mark_paycheck_processed,
     set_access_token,
+    set_account_info,
     set_cursor,
 )
 from scheduler_jobs import scheduled_contribution
@@ -390,6 +392,12 @@ async def plaid_callback(request: Request):
         raise HTTPException(status_code=400, detail="Missing public_token")
     access_token = exchange_public_token(public_token)
     set_access_token(access_token)
+    try:
+        institution_name, account_mask = get_account_info(access_token)
+        set_account_info(institution_name, account_mask)
+        log.info("Plaid account info stored: %s ••%s", institution_name, account_mask)
+    except Exception as e:
+        log.warning("Could not fetch Plaid account info (non-fatal): %s", e)
     write_audit_entry("plaid_linked", {})
     log.info("Plaid Link complete — access token stored")
     return {"status": "ok"}
