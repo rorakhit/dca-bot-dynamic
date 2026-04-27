@@ -129,7 +129,7 @@ LANDING_HTML = """<!DOCTYPE html>
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #475569;
+      color: #64748b;
       margin-bottom: 12px;
     }
 
@@ -186,7 +186,7 @@ LANDING_HTML = """<!DOCTYPE html>
       transition: width 0.6s cubic-bezier(0.22,1,0.36,1);
     }
     .alloc-pct { font-size: 13px; color: #94a3b8; width: 42px; text-align: right; font-weight: 500; }
-    .alloc-target { font-size: 12px; color: #475569; width: 42px; text-align: right; }
+    .alloc-target { font-size: 12px; color: #64748b; width: 42px; text-align: right; }
     .drift-badge {
       font-size: 12px;
       font-weight: 600;
@@ -215,12 +215,12 @@ LANDING_HTML = """<!DOCTYPE html>
     }
     .contribution-item:last-child { border-bottom: none; }
     .contrib-left { flex: 1; }
-    .contrib-date { font-size: 12px; color: #475569; margin-bottom: 3px; }
+    .contrib-date { font-size: 12px; color: #64748b; margin-bottom: 3px; }
     .contrib-alloc { font-size: 13px; font-weight: 500; }
     .contrib-alloc span { color: #f59e0b; font-weight: 600; }
     .contrib-reasoning {
       font-size: 12px;
-      color: #475569;
+      color: #64748b;
       margin-top: 4px;
       line-height: 1.5;
       max-width: 500px;
@@ -250,7 +250,7 @@ LANDING_HTML = """<!DOCTYPE html>
     .event-dot.purple { background: #a78bfa; }
     .event-dot.orange { background: #f97316; }
     .event-dot.gray   { background: #334155; }
-    .event-time { color: #475569; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .event-time { color: #64748b; flex-shrink: 0; font-variant-numeric: tabular-nums; }
     .event-text { color: #94a3b8; line-height: 1.4; }
 
     .loading { color: #334155; font-size: 13px; text-align: center; padding: 28px; }
@@ -399,7 +399,7 @@ function colorFor(sym, i) { return COLORS[sym] || COLORS.default[i % COLORS.defa
 
 let valueChart = null, driftChart = null, targetChart = null;
 
-Chart.defaults.color = '#475569';
+Chart.defaults.color = '#64748b';
 Chart.defaults.borderColor = 'rgba(255,255,255,0.04)';
 Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
 
@@ -670,7 +670,7 @@ function renderReasoning(entries) {
   if (!latest) {
     textEl.textContent = 'No allocation reasoning yet — appears after the first contribution cycle.';
     textEl.style.fontStyle = 'normal';
-    textEl.style.color = '#475569';
+    textEl.style.color = '#64748b';
     metaEl.textContent = '';
     return;
   }
@@ -825,7 +825,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     .alloc-bar-wrap { flex: 1; background: #0f0f13; border-radius: 99px; height: 8px; overflow: hidden; }
     .alloc-bar { height: 100%; border-radius: 99px; transition: width .5s; }
     .alloc-pct { font-size: 13px; color: #94a3b8; width: 36px; text-align: right; }
-    .alloc-target { font-size: 11px; color: #475569; width: 42px; text-align: right; }
+    .alloc-target { font-size: 11px; color: #64748b; width: 42px; text-align: right; }
     .drift-badge {
       font-size: 11px; font-weight: 600; width: 48px; text-align: right;
     }
@@ -852,7 +852,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     .contrib-alloc span { color: #f59e0b; font-weight: 600; }
     .contrib-reasoning {
       font-size: 11px;
-      color: #475569;
+      color: #64748b;
       margin-top: 3px;
       line-height: 1.4;
     }
@@ -878,7 +878,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     .event-dot.purple { background: #a78bfa; }
     .event-dot.orange { background: #f97316; }
     .event-dot.gray   { background: #64748b; }
-    .event-time { color: #475569; flex-shrink: 0; }
+    .event-time { color: #64748b; flex-shrink: 0; }
     .event-text { color: #94a3b8; line-height: 1.4; }
 
     .status-bar {
@@ -888,10 +888,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       margin-bottom: 16px;
     }
 
-    .loading { color: #475569; font-size: 14px; text-align: center; padding: 24px; }
+    .loading { color: #64748b; font-size: 14px; text-align: center; padding: 24px; }
     .error   { color: #f87171; font-size: 13px; text-align: center; padding: 16px; }
 
-    #last-updated { font-size: 11px; color: #475569; text-align: center; margin-top: 8px; }
+    #last-updated { font-size: 11px; color: #64748b; text-align: center; margin-top: 8px; }
 
     .reasoning-card {
       background: rgba(245,158,11,0.07);
@@ -1241,7 +1241,7 @@ function renderReasoning(entries) {
   if (!latest) {
     textEl.textContent = 'No allocation reasoning yet — appears after the first contribution cycle.';
     textEl.style.fontStyle = 'normal';
-    textEl.style.color = '#475569';
+    textEl.style.color = '#64748b';
     metaEl.textContent = '';
     return;
   }
