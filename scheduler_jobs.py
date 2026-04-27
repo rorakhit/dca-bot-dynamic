@@ -140,30 +140,7 @@ async def expire_pending():
         _save_pending(pending_approvals)
 
 
-# ─────────────────────────────────────────────
-# CONTRIBUTION REMINDER (9am, 15th & last day)
-# ─────────────────────────────────────────────
 
-def contribution_reminder():
-    """Remind to fund Alpaca on the 15th and last day of the month."""
-    today = datetime.now(ET).strftime("%B %d")
-    html = f"""<!DOCTYPE html>
-<html><body style="font-family:-apple-system,sans-serif;padding:24px;color:#111827">
-  <div style="max-width:520px;background:#eff6ff;border:1px solid #bfdbfe;
-              border-radius:12px;padding:24px">
-    <h2 style="color:#2563eb;margin:0 0 12px">💰 DCA Dynamic Reminder — {today}</h2>
-    <p style="margin:0 0 8px">
-      Time to transfer <strong>${CONTRIBUTION_AMOUNT:.0f}</strong> into your Alpaca
-      live account so the dynamic allocation bot can propose a buy on the next
-      contribution day (1st or 16th).
-    </p>
-    <p style="font-size:13px;color:#6b7280;margin:12px 0 0">
-      💵 Live trading — you'll get an approve/deny email before any orders execute.
-    </p>
-  </div>
-</body></html>"""
-    _send_email(f"💰 DCA Dynamic — Fund account (${CONTRIBUTION_AMOUNT:.0f})", html)
-    log.info("Contribution reminder email sent")
 
 
 # ─────────────────────────────────────────────
@@ -351,3 +328,13 @@ def dca_contribution_report():
 
     _send_email(f"📊 DCA Dynamic Report — {date_str}", html)
     log.info("DCA contribution report email sent")
+
+
+# ─────────────────────────────────────────────
+# EXPIRE PLAID TOKENS (daily 5pm ET)
+# ─────────────────────────────────────────────
+
+def expire_plaid_tokens():
+    """Remove stale cancel/retry/skip/force tokens from plaid_store.json."""
+    from plaid_store import expire_action_tokens
+    expire_action_tokens()
