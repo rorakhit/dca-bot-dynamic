@@ -16,6 +16,8 @@ _DEFAULT: dict = {
     "cursor": None,
     "processed_ids": [],
     "action_tokens": {},
+    "institution_name": None,
+    "account_mask": None,
 }
 
 
@@ -49,6 +51,22 @@ def set_access_token(token: str):
 
 def get_access_token() -> str | None:
     return _load().get("access_token")
+
+
+# ─────────────────────────────────────────────
+# ACCOUNT INFO
+# ─────────────────────────────────────────────
+
+def set_account_info(institution_name: str, account_mask: str) -> None:
+    data = _load()
+    data["institution_name"] = institution_name
+    data["account_mask"] = account_mask
+    _save(data)
+
+
+def get_account_info() -> tuple[str | None, str | None]:
+    data = _load()
+    return data.get("institution_name"), data.get("account_mask")
 
 
 # ─────────────────────────────────────────────

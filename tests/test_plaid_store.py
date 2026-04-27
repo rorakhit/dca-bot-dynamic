@@ -69,3 +69,27 @@ def test_expire_action_tokens(temp_plaid_store):
     plaid_store.expire_action_tokens()
     assert plaid_store.get_action_token(good) is not None
     assert plaid_store.get_action_token(bad) is None
+
+
+def test_get_account_info_returns_none_when_unset(temp_plaid_store):
+    import plaid_store
+    name, mask = plaid_store.get_account_info()
+    assert name is None
+    assert mask is None
+
+
+def test_set_and_get_account_info(temp_plaid_store):
+    import plaid_store
+    plaid_store.set_account_info("Chase", "4521")
+    name, mask = plaid_store.get_account_info()
+    assert name == "Chase"
+    assert mask == "4521"
+
+
+def test_account_info_persists_across_reload(temp_plaid_store):
+    import plaid_store
+    plaid_store.set_account_info("SoFi", "7890")
+    # Simulate reload by calling _load directly
+    data = plaid_store._load()
+    assert data["institution_name"] == "SoFi"
+    assert data["account_mask"] == "7890"
