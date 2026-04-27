@@ -23,6 +23,7 @@ from config import (
     PAYCHECK_MIN_AMOUNT,
     PLAID_CLIENT_ID,
     PLAID_ENV,
+    PLAID_REDIRECT_URI,
     PLAID_SECRET,
     SERVER_BASE_URL,
     log,
@@ -60,6 +61,7 @@ def create_link_token() -> str:
         country_codes=[CountryCode("US")],
         language="en",
         webhook=f"{SERVER_BASE_URL}/plaid/webhook",
+        redirect_uri=PLAID_REDIRECT_URI,
         user=LinkTokenCreateRequestUser(client_user_id="ro"),
     )
     response = plaid_client.link_token_create(request)

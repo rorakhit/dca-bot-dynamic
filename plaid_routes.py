@@ -305,6 +305,7 @@ def plaid_link_page():
     </button>
   </div>
   <script>
+    localStorage.setItem('plaid_link_token', '{link_token}');
     var handler = Plaid.create({{
       token: '{link_token}',
       onSuccess: function(public_token, metadata) {{
@@ -313,6 +314,7 @@ def plaid_link_page():
           headers: {{'Content-Type': 'application/json'}},
           body: JSON.stringify({{public_token: public_token}}),
         }}).then(r => r.json()).then(function(d) {{
+          localStorage.removeItem('plaid_link_token');
           document.body.innerHTML =
             '<div style="font-family:-apple-system,sans-serif;display:flex;' +
             'align-items:center;justify-content:center;min-height:100vh;margin:0">' +
@@ -324,6 +326,56 @@ def plaid_link_page():
       onExit: function(err) {{ if (err) console.error('Plaid Link error:', err); }},
     }});
     document.getElementById('link-btn').onclick = function() {{ handler.open(); }};
+  </script>
+</body></html>"""
+    return HTMLResponse(html)
+
+
+@router.get("/oauth-return", response_class=HTMLResponse)
+def plaid_oauth_return():
+    """OAuth return page — Plaid redirects here after bank OAuth flow (Chase, SoFi, etc.)."""
+    html = """<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>DCA Dynamic — Connecting...</title>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+</head>
+<body style="font-family:-apple-system,sans-serif;display:flex;align-items:center;
+             justify-content:center;min-height:100vh;margin:0;background:#f3f4f6">
+  <div style="background:white;border-radius:16px;padding:40px;max-width:420px;
+              text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
+    <h1 style="margin:0 0 8px;font-size:24px">⏳ Completing Connection...</h1>
+    <p style="color:#6b7280;margin:0;font-size:14px">Finishing bank OAuth — please wait.</p>
+  </div>
+  <script>
+    var token = localStorage.getItem('plaid_link_token');
+    if (!token) {
+      document.body.innerHTML =
+        '<div style="font-family:-apple-system,sans-serif;display:flex;align-items:center;' +
+        'justify-content:center;min-height:100vh;margin:0"><div style="text-align:center">' +
+        '<h1>⚠️ Session Expired</h1>' +
+        '<p><a href="/plaid/link">Start over</a></p></div></div>';
+    } else {
+      var handler = Plaid.create({
+        token: token,
+        receivedRedirectUri: window.location.href,
+        onSuccess: function(public_token, metadata) {
+          fetch('/plaid/callback', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({public_token: public_token}),
+          }).then(r => r.json()).then(function() {
+            localStorage.removeItem('plaid_link_token');
+            document.body.innerHTML =
+              '<div style="font-family:-apple-system,sans-serif;display:flex;' +
+              'align-items:center;justify-content:center;min-height:100vh;margin:0">' +
+              '<div style="text-align:center"><h1>✅ Bank Connected</h1>' +
+              '<p style="color:#6b7280">Setup complete. DCA Dynamic will now detect' +
+              ' your paycheck automatically.</p></div></div>';
+          });
+        },
+        onExit: function(err) { if (err) console.error('Plaid OAuth return error:', err); },
+      });
+      handler.open();
+    }
   </script>
 </body></html>"""
     return HTMLResponse(html)

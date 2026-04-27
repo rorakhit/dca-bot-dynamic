@@ -43,6 +43,9 @@ PAYCHECK_CANCEL_GRACE_SECONDS = int(os.environ.get("PAYCHECK_CANCEL_GRACE_SECOND
 SERVER_BASE_URL = os.environ.get(
     "SERVER_BASE_URL", "https://dca-bot-dynamic.up.railway.app"
 )
+PLAID_REDIRECT_URI = os.environ.get(
+    "PLAID_REDIRECT_URI", f"{SERVER_BASE_URL}/plaid/oauth-return"
+)
 EMAIL_FROM = os.environ.get("EMAIL_FROM", "DCA Dynamic <onboarding@resend.dev>")
 
 # How much to deploy each contribution cycle
