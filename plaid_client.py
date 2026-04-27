@@ -16,6 +16,9 @@ from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUse
 from plaid.model.products import Products
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from plaid.model.webhook_verification_key_get_request import WebhookVerificationKeyGetRequest
+from plaid.model.item_get_request import ItemGetRequest
+from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
+from plaid.model.accounts_get_request import AccountsGetRequest
 from jose import jwt, JWTError
 
 from config import (
@@ -73,6 +76,27 @@ def exchange_public_token(public_token: str) -> str:
     request = ItemPublicTokenExchangeRequest(public_token=public_token)
     response = plaid_client.item_public_token_exchange(request)
     return response["access_token"]
+
+
+def get_account_info(access_token: str) -> tuple[str, str]:
+    """Return (institution_name, account_mask) for the linked account."""
+    item_response = plaid_client.item_get(ItemGetRequest(access_token=access_token))
+    institution_id = item_response.item.institution_id
+
+    inst_response = plaid_client.institutions_get_by_id(
+        InstitutionsGetByIdRequest(
+            institution_id=institution_id,
+            country_codes=[CountryCode("US")],
+        )
+    )
+    institution_name = inst_response.institution.name
+
+    accounts_response = plaid_client.accounts_get(
+        AccountsGetRequest(access_token=access_token)
+    )
+    account_mask = accounts_response.accounts[0].mask
+
+    return institution_name, account_mask
 
 
 # ─────────────────────────────────────────────
