@@ -38,3 +38,8 @@ ENV/
 *.swp
 *.swo
 *~
+
+# ─── Tooling ──────────────────────────────────
+.superpowers/
+.serena/
+.claude/
