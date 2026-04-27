@@ -35,6 +35,7 @@ from broker import (
 )
 from config import BASE_TARGET_ALLOCATION, CONTRIBUTION_AMOUNT, ET, log
 from dashboard import DASHBOARD_HTML, LANDING_HTML
+from plaid_store import get_account_info as get_plaid_account_info
 
 router = APIRouter()
 
@@ -75,6 +76,8 @@ def health(scheduler=None):
     # Contributions are now event-driven (Plaid paycheck webhook)
     next_run = "event_driven"
 
+    plaid_institution, plaid_account_mask = get_plaid_account_info()
+
     return JSONResponse({
         "status": "ok" if not errors else "degraded",
         "errors": errors,
@@ -87,6 +90,8 @@ def health(scheduler=None):
         "account_value_usd": account_value,
         "server_time_et": datetime.now(ET).isoformat(),
         "fund_lineup": list(BASE_TARGET_ALLOCATION.keys()),
+        "plaid_institution": plaid_institution,
+        "plaid_account_mask": plaid_account_mask,
     })
 
 
