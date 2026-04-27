@@ -94,9 +94,14 @@ def get_account_info(access_token: str) -> tuple[str, str]:
     accounts_response = plaid_client.accounts_get(
         AccountsGetRequest(access_token=access_token)
     )
-    account_mask = accounts_response.accounts[0].mask
-
-    return institution_name, account_mask
+    accounts = accounts_response.accounts
+    # Prefer depository/checking; fall back to any depository; then first account
+    account = (
+        next((a for a in accounts if str(a.type) == "depository" and str(a.subtype) == "checking"), None)
+        or next((a for a in accounts if str(a.type) == "depository"), None)
+        or accounts[0]
+    )
+    return institution_name, account.mask
 
 
 # ─────────────────────────────────────────────

@@ -403,6 +403,18 @@ async def plaid_callback(request: Request):
     return {"status": "ok"}
 
 
+@router.post("/refresh-account-info")
+async def refresh_account_info():
+    """Re-fetch institution name and account mask from Plaid and update the store."""
+    access_token = get_access_token()
+    if not access_token:
+        raise HTTPException(status_code=400, detail="No Plaid account linked — visit /plaid/link first")
+    institution_name, account_mask = get_account_info(access_token)
+    set_account_info(institution_name, account_mask)
+    log.info("Plaid account info refreshed: %s ••%s", institution_name, account_mask)
+    return {"status": "ok", "institution": institution_name, "mask": account_mask}
+
+
 @router.post("/webhook")
 async def plaid_webhook(request: Request, background_tasks: BackgroundTasks):
     """
