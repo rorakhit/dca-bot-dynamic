@@ -20,7 +20,7 @@ LANDING_HTML = """<!DOCTYPE html>
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #0c0a1a;
+      background: #0a0805;
       color: #e2e8f0;
       min-height: 100vh;
     }
@@ -48,10 +48,10 @@ LANDING_HTML = """<!DOCTYPE html>
     }
     .nav-brand .icon {
       width: 36px; height: 36px; border-radius: 10px;
-      background: linear-gradient(135deg, #f97316, #a855f7);
+      background: linear-gradient(135deg, #f59e0b, #b45309);
       display: flex; align-items: center; justify-content: center;
       font-size: 20px;
-      box-shadow: 0 0 16px rgba(249,115,22,0.3);
+      box-shadow: 0 0 16px rgba(245,158,11,0.25);
     }
     .nav-right {
       display: flex;
@@ -75,7 +75,7 @@ LANDING_HTML = """<!DOCTYPE html>
     .pill.green  { background: rgba(52,211,153,0.12); color: #34d399; border-color: rgba(52,211,153,0.2); }
     .pill.red    { background: rgba(248,113,113,0.12); color: #f87171; border-color: rgba(248,113,113,0.2); }
     .pill.yellow { background: rgba(251,191,36,0.12);  color: #fbbf24; border-color: rgba(251,191,36,0.2); }
-    .pill.purple { background: rgba(168,85,247,0.12);  color: #a855f7; border-color: rgba(168,85,247,0.2); }
+    .pill.amber  { background: rgba(245,158,11,0.12);  color: #f59e0b; border-color: rgba(245,158,11,0.2); }
     .pill.muted  { background: rgba(255,255,255,0.04); color: #64748b; border-color: rgba(255,255,255,0.06); }
     #refresh-btn {
       background: rgba(255,255,255,0.05);
@@ -146,6 +146,19 @@ LANDING_HTML = """<!DOCTYPE html>
     }
     .stat-card .stat-value.green { color: #34d399; }
     .stat-card .stat-value.red   { color: #f87171; }
+    .stat-card.amber-card {
+      background: rgba(245,158,11,0.06);
+      border-color: rgba(245,158,11,0.15);
+    }
+    .stat-card.green-card {
+      background: rgba(52,211,153,0.05);
+      border-color: rgba(52,211,153,0.15);
+    }
+    .stat-card .stat-value { color: #fef3c7; }
+    .stat-card .stat-percent {
+      font-size: 11px;
+      margin-top: 2px;
+    }
 
     /* ── Allocation bars ── */
     .allocation-row {
@@ -204,7 +217,7 @@ LANDING_HTML = """<!DOCTYPE html>
     .contrib-left { flex: 1; }
     .contrib-date { font-size: 12px; color: #475569; margin-bottom: 3px; }
     .contrib-alloc { font-size: 13px; font-weight: 500; }
-    .contrib-alloc span { color: #a78bfa; font-weight: 600; }
+    .contrib-alloc span { color: #f59e0b; font-weight: 600; }
     .contrib-reasoning {
       font-size: 12px;
       color: #475569;
@@ -249,10 +262,44 @@ LANDING_HTML = """<!DOCTYPE html>
       margin-top: 12px;
     }
 
+    /* ── Claude reasoning callout ── */
+    .reasoning-card {
+      background: rgba(245,158,11,0.07);
+      border: 1px solid rgba(245,158,11,0.18);
+    }
+    .reasoning-card .card-title { color: #92400e; }
+    .reasoning-text {
+      color: #fcd34d;
+      font-size: 13px;
+      font-style: italic;
+      line-height: 1.6;
+    }
+    .reasoning-meta { font-size: 10px; color: #78716c; margin-top: 8px; }
+
+    /* ── Plaid status panel ── */
+    .plaid-rows { display: flex; flex-direction: column; gap: 9px; margin-top: 4px; }
+    .plaid-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+    .plaid-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .plaid-dot.green  { background: #34d399; }
+    .plaid-dot.amber  { background: #f59e0b; }
+    .plaid-dot.red    { background: #f87171; }
+    .plaid-label { color: #94a3b8; }
+    .plaid-payday-label { font-size: 9px; color: #78716c; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 6px; }
+    .plaid-payday-value { font-size: 13px; font-weight: 700; color: #fef3c7; margin-top: 2px; }
+
+    /* ── 2fr/1fr grid for reasoning + plaid ── */
+    .grid-plaid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr 1fr; }
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .grid-plaid { grid-template-columns: 1fr; }
       .container { padding: 20px 16px 40px; }
       nav { padding: 12px 16px; }
     }
@@ -262,8 +309,11 @@ LANDING_HTML = """<!DOCTYPE html>
 
 <nav>
   <div class="nav-brand">
-    <div class="icon">⚡</div>
-    <span>DCA Dynamic <span style="font-size:18px;margin-left:6px">🧪📈</span></span>
+    <div class="icon">◈</div>
+    <div>
+      <div>DCA DYNAMIC</div>
+      <div style="font-size:10px;font-weight:400;color:#78716c;letter-spacing:0.03em;margin-top:1px;">Automated wealth engine</div>
+    </div>
   </div>
   <div class="nav-right">
     <div class="nav-pills" id="status-bar">
@@ -277,10 +327,27 @@ LANDING_HTML = """<!DOCTYPE html>
 
   <!-- ── Hero stats ── -->
   <div class="hero" id="hero">
-    <div class="card stat-card"><div class="card-title">Portfolio value</div><div class="stat-value" id="s-total">—</div><div class="stat-sub">Total assets</div></div>
+    <div class="card stat-card amber-card"><div class="card-title">Portfolio value</div><div class="stat-value" id="s-total">—</div><div class="stat-sub">Total assets</div></div>
     <div class="card stat-card"><div class="card-title">Cash available</div><div class="stat-value" id="s-cash">—</div><div class="stat-sub">Uninvested</div></div>
     <div class="card stat-card"><div class="card-title">Invested</div><div class="stat-value" id="s-invested">—</div><div class="stat-sub">In positions</div></div>
-    <div class="card stat-card"><div class="card-title">Unrealised P&amp;L</div><div class="stat-value" id="s-pl">—</div><div class="stat-sub">Total gain/loss</div></div>
+    <div class="card stat-card" id="pl-card"><div class="card-title">Unrealised P&amp;L</div><div class="stat-value" id="s-pl">—</div><div class="stat-percent" id="s-pl-pct"></div></div>
+  </div>
+
+  <!-- ── Claude reasoning + Plaid status ── -->
+  <div class="grid-plaid">
+    <div class="card reasoning-card">
+      <div class="card-title">Claude's last allocation rationale</div>
+      <div class="reasoning-text" id="reasoning-text">—</div>
+      <div class="reasoning-meta" id="reasoning-meta"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Paycheck automation</div>
+      <div class="plaid-rows" id="plaid-rows">
+        <div class="loading">…</div>
+      </div>
+      <div class="plaid-payday-label">Next expected payday</div>
+      <div class="plaid-payday-value" id="plaid-payday">—</div>
+    </div>
   </div>
 
   <!-- ── Charts row ── -->
@@ -324,8 +391,8 @@ LANDING_HTML = """<!DOCTYPE html>
 
 <script>
 const COLORS = {
-  VTI:  '#818cf8', VXUS: '#34d399', AVUV: '#fbbf24', BND: '#f87171',
-  default: ['#818cf8','#34d399','#fbbf24','#f87171','#60a5fa','#a78bfa'],
+  VTI:  '#f59e0b', VXUS: '#34d399', AVUV: '#60a5fa', BND: '#f87171',
+  default: ['#f59e0b','#34d399','#60a5fa','#f87171','#d97706','#fbbf24'],
 };
 const BASE_TARGETS = { VTI: 0.50, VXUS: 0.35, AVUV: 0.10, BND: 0.05 };
 function colorFor(sym, i) { return COLORS[sym] || COLORS.default[i % COLORS.default.length]; }
@@ -340,17 +407,17 @@ function mkValueChart(labels, values) {
   const ctx = document.getElementById('valueChart');
   if (valueChart) valueChart.destroy();
   const grad = ctx.getContext('2d').createLinearGradient(0,0,0,260);
-  grad.addColorStop(0, 'rgba(129,140,248,0.25)');
-  grad.addColorStop(1, 'rgba(129,140,248,0)');
+  grad.addColorStop(0, 'rgba(245,158,11,0.25)');
+  grad.addColorStop(1, 'rgba(245,158,11,0)');
   valueChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        data: values, borderColor: '#818cf8', backgroundColor: grad,
+        data: values, borderColor: '#f59e0b', backgroundColor: grad,
         borderWidth: 2, fill: true, tension: 0.4,
         pointRadius: values.length < 20 ? 3 : 0,
-        pointBackgroundColor: '#818cf8', pointBorderWidth: 0,
+        pointBackgroundColor: '#f59e0b', pointBorderWidth: 0,
       }],
     },
     options: {
@@ -459,11 +526,11 @@ function renderPortfolio(p, health) {
     : health.trading_day
       ? '<span class="pill yellow">● After hours</span>'
       : '<span class="pill red">● Market closed</span>';
-  const nextPill = health.next_contribution
+  const nextPill = (health.next_contribution && health.next_contribution !== 'event_driven')
     ? `<span class="pill muted">Next run: ${fmtTs(health.next_contribution)}</span>` : '';
   bar.innerHTML = marketPill
-    + '<span class="pill red">Live</span>'
-    + '<span class="pill purple">Dynamic</span>'
+    + '<span class="pill amber">Live</span>'
+    + '<span class="pill amber">Plaid</span>'
     + nextPill;
 
   const total = p.total_value;
@@ -483,6 +550,15 @@ function renderPortfolio(p, health) {
   const sPl = document.getElementById('s-pl');
   sPl.textContent = (pl >= 0 ? '+' : '') + fmt(pl);
   sPl.className = 'stat-value ' + plClass;
+
+  const plCard = document.getElementById('pl-card');
+  plCard.className = 'card stat-card ' + (pl >= 0 ? 'green-card' : '');
+
+  const costBasis = total - pl;
+  const plPct = costBasis > 0 ? (pl / costBasis * 100).toFixed(1) : '0.0';
+  const sPct = document.getElementById('s-pl-pct');
+  sPct.textContent = (pl >= 0 ? '+' : '') + plPct + '% all time';
+  sPct.style.color = pl >= 0 ? '#34d399' : '#f87171';
 
   const symbols = Object.keys(p.target_allocation);
   document.getElementById('allocation-rows').innerHTML = symbols.map((sym, i) => {
@@ -587,6 +663,51 @@ function renderHistory(entries) {
     </li>`).join('');
 }
 
+function renderReasoning(entries) {
+  const latest = entries.find(e => e.event === 'dynamic_allocation_proposed');
+  const textEl = document.getElementById('reasoning-text');
+  const metaEl = document.getElementById('reasoning-meta');
+  if (!latest) {
+    textEl.textContent = 'No allocation reasoning yet — appears after the first contribution cycle.';
+    textEl.style.fontStyle = 'normal';
+    textEl.style.color = '#475569';
+    metaEl.textContent = '';
+    return;
+  }
+  const reason = latest.allocation_reasoning || latest.reasoning || '';
+  textEl.textContent = reason ? `"${reason}"` : '(No reasoning recorded for this cycle.)';
+  metaEl.textContent = fmtTs(latest.timestamp) + ' · Dynamic strategy';
+}
+
+function renderPlaid(health) {
+  const connected = health.plaid_institution != null;
+  const institution = health.plaid_institution || '';
+  const mask = health.plaid_account_mask || '';
+  const rows = document.getElementById('plaid-rows');
+
+  if (connected) {
+    rows.innerHTML = `
+      <div class="plaid-row">
+        <div class="plaid-dot green"></div>
+        <span class="plaid-label">${institution} ••${mask} connected</span>
+      </div>
+      <div class="plaid-row">
+        <div class="plaid-dot amber"></div>
+        <span class="plaid-label">Watching for deposit</span>
+      </div>`;
+  } else {
+    rows.innerHTML = `
+      <div class="plaid-row">
+        <div class="plaid-dot red"></div>
+        <span class="plaid-label">No account linked</span>
+      </div>`;
+  }
+
+  const paydayEl = document.getElementById('plaid-payday');
+  paydayEl.textContent = (health.next_contribution && health.next_contribution !== 'event_driven')
+    ? fmtTs(health.next_contribution) : 'On next paycheck';
+}
+
 async function loadAll() {
   document.getElementById('refresh-btn').textContent = '↻ …';
   try {
@@ -597,6 +718,8 @@ async function loadAll() {
     ]);
     renderPortfolio(portfolio, health);
     renderHistory(audit);
+    renderReasoning(audit);
+    renderPlaid(health);
     document.getElementById('last-updated').textContent =
       'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'});
   } catch(err) {
