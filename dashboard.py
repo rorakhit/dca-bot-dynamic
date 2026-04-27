@@ -751,7 +751,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0c0a1a;
+      background: #0a0805;
       color: #e2e8f0;
       min-height: 100vh;
       padding: 16px;
@@ -849,7 +849,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     .contrib-left { flex: 1; }
     .contrib-date { font-size: 12px; color: #64748b; margin-bottom: 2px; }
     .contrib-alloc { font-size: 13px; }
-    .contrib-alloc span { color: #a78bfa; font-weight: 600; }
+    .contrib-alloc span { color: #f59e0b; font-weight: 600; }
     .contrib-reasoning {
       font-size: 11px;
       color: #475569;
@@ -892,13 +892,39 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     .error   { color: #f87171; font-size: 13px; text-align: center; padding: 16px; }
 
     #last-updated { font-size: 11px; color: #475569; text-align: center; margin-top: 8px; }
+
+    .reasoning-card {
+      background: rgba(245,158,11,0.07);
+      border: 1px solid rgba(245,158,11,0.18);
+    }
+    .reasoning-card .card-title { color: #92400e; }
+    .reasoning-text {
+      color: #fcd34d;
+      font-size: 12px;
+      font-style: italic;
+      line-height: 1.6;
+    }
+    .reasoning-meta { font-size: 10px; color: #78716c; margin-top: 6px; }
+    .plaid-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .plaid-row { display: flex; align-items: center; gap: 7px; font-size: 11px; }
+    .plaid-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .plaid-dot.green { background: #34d399; }
+    .plaid-dot.amber { background: #f59e0b; }
+    .plaid-dot.red   { background: #f87171; }
+    .plaid-label { color: #94a3b8; }
+    .plaid-payday-label { font-size: 9px; color: #78716c; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 6px; }
+    .plaid-payday-value { font-size: 13px; font-weight: 700; color: #fef3c7; margin-top: 2px; }
   </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <h1>🧪 DCA Dynamic</h1>
+  <div style="display:flex;align-items:center;gap:9px;">
+    <div style="width:30px;height:30px;background:linear-gradient(135deg,#f59e0b,#b45309);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">◈</div>
+    <div>
+      <div style="color:#fef3c7;font-size:14px;font-weight:700;letter-spacing:0.04em;">DCA DYNAMIC</div>
+      <div style="color:#78716c;font-size:9px;letter-spacing:0.03em;">Automated wealth engine</div>
+    </div>
   </div>
   <button id="refresh-btn" onclick="loadAll()">↻ Refresh</button>
 </header>
@@ -913,6 +939,21 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   <div class="stat-grid" id="stats">
     <div class="loading">…</div>
   </div>
+</div>
+
+<!-- ── CLAUDE REASONING ── -->
+<div class="card reasoning-card">
+  <div class="card-title">Claude's last allocation rationale</div>
+  <div class="reasoning-text" id="reasoning-text">—</div>
+  <div class="reasoning-meta" id="reasoning-meta"></div>
+</div>
+
+<!-- ── PLAID STATUS ── -->
+<div class="card">
+  <div class="card-title">Paycheck automation</div>
+  <div class="plaid-rows" id="plaid-rows"><div class="loading">…</div></div>
+  <div class="plaid-payday-label">Next expected payday</div>
+  <div class="plaid-payday-value" id="plaid-payday">—</div>
 </div>
 
 <!-- ── ALLOCATION ── -->
@@ -953,8 +994,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
 <script>
 const COLORS = {
-  VTI:  '#818cf8', VXUS: '#34d399', AVUV: '#fbbf24', BND: '#f87171',
-  default: ['#818cf8','#34d399','#fbbf24','#f87171','#60a5fa','#a78bfa'],
+  VTI:  '#f59e0b', VXUS: '#34d399', AVUV: '#60a5fa', BND: '#f87171',
+  default: ['#f59e0b','#34d399','#60a5fa','#f87171','#d97706','#fbbf24'],
 };
 function colorFor(sym, i) {
   return COLORS[sym] || COLORS.default[i % COLORS.default.length];
@@ -972,8 +1013,8 @@ function mkValueChart(labels, values) {
   if (valueChart) valueChart.destroy();
 
   const grad = ctx.getContext('2d').createLinearGradient(0,0,0,200);
-  grad.addColorStop(0,  'rgba(129,140,248,0.3)');
-  grad.addColorStop(1,  'rgba(129,140,248,0)');
+  grad.addColorStop(0, 'rgba(245,158,11,0.3)');
+  grad.addColorStop(1, 'rgba(245,158,11,0)');
 
   valueChart = new Chart(ctx, {
     type: 'line',
@@ -981,13 +1022,13 @@ function mkValueChart(labels, values) {
       labels,
       datasets: [{
         data: values,
-        borderColor: '#818cf8',
+        borderColor: '#f59e0b',
         backgroundColor: grad,
         borderWidth: 2,
         fill: true,
         tension: 0.4,
         pointRadius: values.length < 15 ? 4 : 0,
-        pointBackgroundColor: '#818cf8',
+        pointBackgroundColor: '#f59e0b',
       }],
     },
     options: {
@@ -1063,20 +1104,22 @@ function renderPortfolio(p, health) {
     : health.trading_day
       ? '<span class="pill yellow">● After hours</span>'
       : '<span class="pill red">● Market closed</span>';
-  const nextPill = health.next_contribution
+  const nextPill = (health.next_contribution && health.next_contribution !== 'event_driven')
     ? `<span class="pill" style="background:#1e1e2e;color:#a0aec0">Next: ${fmtTs(health.next_contribution)}</span>`
     : '';
   bar.innerHTML = marketPill
-    + '<span class="pill red">Live</span>'
-    + '<span class="pill purple">Dynamic</span>'
+    + '<span class="pill" style="background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.2);">Live</span>'
+    + '<span class="pill" style="background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.2);">Plaid</span>'
     + nextPill;
 
-  const plClass = (p.total_value - p.cash_available) >= 0 ? 'green' : 'red';
-  const invested = p.total_value - p.cash_available;
+  const pl = Object.values(p.holdings).reduce((s, h) => s + h.unrealized_pl, 0);
+  const plClass = pl >= 0 ? 'green' : 'red';
+  const costBasis = p.total_value - pl;
+  const plPct = costBasis > 0 ? (pl / costBasis * 100).toFixed(1) : '0.0';
   document.getElementById('stats').innerHTML = `
-    <div class="stat">
+    <div class="stat" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:10px;">
       <div class="label">Total value</div>
-      <div class="value">${fmt(p.total_value)}</div>
+      <div class="value" style="color:#fef3c7;">${fmt(p.total_value)}</div>
     </div>
     <div class="stat">
       <div class="label">Cash available</div>
@@ -1084,11 +1127,12 @@ function renderPortfolio(p, health) {
     </div>
     <div class="stat" style="margin-top:8px">
       <div class="label">Invested</div>
-      <div class="value ${plClass}">${fmt(invested)}</div>
+      <div class="value">${fmt(p.total_value - p.cash_available)}</div>
     </div>
-    <div class="stat" style="margin-top:8px">
+    <div class="stat" style="margin-top:8px${pl >= 0 ? ';background:rgba(52,211,153,0.05);border:1px solid rgba(52,211,153,0.15);border-radius:10px;padding:10px;' : ''}">
       <div class="label">Unrealised P&L</div>
-      <div class="value ${plClass}">${fmt(Object.values(p.holdings).reduce((s,h)=>s+h.unrealized_pl,0))}</div>
+      <div class="value ${plClass}">${fmt(pl)}</div>
+      <div style="font-size:10px;color:#34d399;margin-top:2px;">${pl >= 0 ? '+' : ''}${plPct}% all time</div>
     </div>
   `;
 
@@ -1190,6 +1234,39 @@ function renderHistory(entries) {
     </li>`).join('');
 }
 
+function renderReasoning(entries) {
+  const latest = entries.find(e => e.event === 'dynamic_allocation_proposed');
+  const textEl = document.getElementById('reasoning-text');
+  const metaEl = document.getElementById('reasoning-meta');
+  if (!latest) {
+    textEl.textContent = 'No allocation reasoning yet — appears after the first contribution cycle.';
+    textEl.style.fontStyle = 'normal';
+    textEl.style.color = '#475569';
+    metaEl.textContent = '';
+    return;
+  }
+  const reason = latest.allocation_reasoning || latest.reasoning || '';
+  textEl.textContent = reason ? `"${reason}"` : '(No reasoning recorded for this cycle.)';
+  metaEl.textContent = fmtTs(latest.timestamp) + ' · Dynamic strategy';
+}
+
+function renderPlaid(health) {
+  const connected = health.plaid_institution != null;
+  const institution = health.plaid_institution || '';
+  const mask = health.plaid_account_mask || '';
+  const rows = document.getElementById('plaid-rows');
+  if (connected) {
+    rows.innerHTML = `
+      <div class="plaid-row"><div class="plaid-dot green"></div><span class="plaid-label">${institution} ••${mask} connected</span></div>
+      <div class="plaid-row"><div class="plaid-dot amber"></div><span class="plaid-label">Watching for deposit</span></div>`;
+  } else {
+    rows.innerHTML = `<div class="plaid-row"><div class="plaid-dot red"></div><span class="plaid-label">No account linked</span></div>`;
+  }
+  const paydayEl = document.getElementById('plaid-payday');
+  paydayEl.textContent = (health.next_contribution && health.next_contribution !== 'event_driven')
+    ? fmtTs(health.next_contribution) : 'On next paycheck';
+}
+
 async function loadAll() {
   document.getElementById('refresh-btn').textContent = '↻ …';
   try {
@@ -1200,6 +1277,8 @@ async function loadAll() {
     ]);
     renderPortfolio(portfolio, health);
     renderHistory(audit);
+    renderReasoning(audit);
+    renderPlaid(health);
     document.getElementById('last-updated').textContent =
       'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'});
   } catch(err) {
