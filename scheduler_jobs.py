@@ -46,17 +46,21 @@ from email_service import _send_email, send_error_email
 # SCHEDULED CONTRIBUTION (10am ET, 1st & 16th)
 # ─────────────────────────────────────────────
 
-async def scheduled_contribution():
+async def scheduled_contribution(amount: float | None = None):
     """
     Full contribution cycle (LIVE TRADING):
       1. Check if trading day
-      2. Check cash balance >= CONTRIBUTION_AMOUNT
+      2. Check cash balance >= amount
       3. Get portfolio state
       4. Fetch market data
       5. Get audit history
       6. Ask AI for dynamic allocation, validate, log it
       7. Send approval email — orders stay pending until user clicks Approve
+
+    amount defaults to CONTRIBUTION_AMOUNT ($100) but can be overridden
+    for paycheck cycles where a different amount was funded.
     """
+    contribution = amount if amount is not None else CONTRIBUTION_AMOUNT
     today = datetime.now(ET).date()
 
     if not is_trading_day(today):
@@ -67,11 +71,11 @@ async def scheduled_contribution():
         account = broker.get_account()
         available_cash = float(account.cash)
 
-        if available_cash < CONTRIBUTION_AMOUNT:
+        if available_cash < contribution:
             log.info(f"Insufficient cash (${available_cash:.2f}) — skipping cycle")
             send_error_email(
                 "scheduled_contribution",
-                RuntimeError(f"Insufficient cash: ${available_cash:.2f} < ${CONTRIBUTION_AMOUNT:.2f}"),
+                RuntimeError(f"Insufficient cash: ${available_cash:.2f} < ${contribution:.2f}"),
             )
             return
 
@@ -89,14 +93,14 @@ async def scheduled_contribution():
 
         # Step 6: Dynamic AI allocation
         dynamic_result = ask_ai_for_dynamic_allocation(
-            portfolio, CONTRIBUTION_AMOUNT, market_stats, audit_history
+            portfolio, contribution, market_stats, audit_history
         )
         write_audit_entry("dynamic_allocation_proposed", {
             "adjusted_targets": dynamic_result["adjusted_targets"],
             "weight_reasoning": dynamic_result["weight_reasoning"],
             "allocations": dynamic_result["allocations"],
             "allocation_reasoning": dynamic_result["allocation_reasoning"],
-            "new_cash": CONTRIBUTION_AMOUNT,
+            "new_cash": contribution,
         })
         log.info(f"Dynamic strategy: targets={dynamic_result['adjusted_targets']}, "
                  f"allocations={dynamic_result['allocations']}")
@@ -107,14 +111,14 @@ async def scheduled_contribution():
             allocation_reasoning=dynamic_result["allocation_reasoning"],
             adjusted_targets=dynamic_result["adjusted_targets"],
             weight_reasoning=dynamic_result["weight_reasoning"],
-            new_cash=CONTRIBUTION_AMOUNT,
+            new_cash=contribution,
         )
-        log.info("Approval email sent — awaiting user click to execute orders")
+        log.info(f"Approval email sent (${contribution:.2f}) — awaiting user click to execute orders")
 
     except Exception as exc:
         log.exception(f"scheduled_contribution failed: {exc}")
-        write_audit_entry("contribution_error", {"error": str(exc), "new_cash": CONTRIBUTION_AMOUNT})
-        send_error_email(f"scheduled_contribution(${CONTRIBUTION_AMOUNT:.2f})", exc)
+        write_audit_entry("contribution_error", {"error": str(exc), "new_cash": contribution})
+        send_error_email(f"scheduled_contribution(${contribution:.2f})", exc)
 
 
 # ─────────────────────────────────────────────

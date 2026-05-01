@@ -80,7 +80,8 @@ def _result_page(title: str, body: str, color: str) -> str:
 # PLAID EMAIL FUNCTIONS
 # ─────────────────────────────────────────────
 
-def _send_paycheck_detected_email(paycheck_amount: float, trigger_url: str):
+def _send_paycheck_detected_email(paycheck_amount: float, trigger_url: str, contribution_amount: float | None = None):
+    cycle_amount = contribution_amount if contribution_amount is not None else CONTRIBUTION_AMOUNT
     html = f"""<!DOCTYPE html>
 <html><body style="font-family:-apple-system,sans-serif;padding:24px;color:#111827">
   <div style="max-width:520px;background:#ecfdf5;border:1px solid #6ee7b7;
@@ -90,7 +91,7 @@ def _send_paycheck_detected_email(paycheck_amount: float, trigger_url: str):
       A deposit of <strong>${abs(paycheck_amount):.2f}</strong> from your employer was detected.
     </p>
     <p style="margin:8px 0">
-      Transfer <strong>${CONTRIBUTION_AMOUNT:.0f}</strong> into your Alpaca account, then tap
+      Transfer <strong>${cycle_amount:.0f}</strong> into your Alpaca account, then tap
       the button below to run the DCA cycle.
     </p>
     <a href="{trigger_url}"
@@ -138,16 +139,20 @@ def _send_pending_conflict_email(force_token: str):
 # PIPELINE ORCHESTRATION
 # ─────────────────────────────────────────────
 
-async def run_paycheck_pipeline(transaction_id: str, paycheck_amount: float):
+async def run_paycheck_pipeline(transaction_id: str, paycheck_amount: float, contribution_amount: float | None = None):
     """
     Background task: detect paycheck → check for conflicts → email user to fund
     Alpaca and tap the DCA trigger link.
+
+    contribution_amount overrides CONTRIBUTION_AMOUNT for this cycle if provided.
     """
+    cycle_amount = contribution_amount if contribution_amount is not None else CONTRIBUTION_AMOUNT
+
     # Check for a stale pending approval (would cause a double cycle)
     if pending_approvals:
         force_token = create_action_token(
             "force",
-            {"transaction_id": transaction_id, "paycheck_amount": paycheck_amount},
+            {"transaction_id": transaction_id, "paycheck_amount": paycheck_amount, "contribution_amount": cycle_amount},
             ttl_seconds=86400,
         )
         _send_pending_conflict_email(force_token)
@@ -157,18 +162,19 @@ async def run_paycheck_pipeline(transaction_id: str, paycheck_amount: float):
         })
         return
 
-    # Create a one-time trigger token valid for 24h
+    # Create a one-time trigger token valid for 24h, carrying the contribution amount
     trigger_token = create_action_token(
         "trigger",
-        {"transaction_id": transaction_id},
+        {"transaction_id": transaction_id, "contribution_amount": cycle_amount},
         ttl_seconds=86400,
     )
     trigger_url = f"{SERVER_BASE_URL}/plaid/trigger-once/{trigger_token}"
 
-    _send_paycheck_detected_email(paycheck_amount, trigger_url)
+    _send_paycheck_detected_email(paycheck_amount, trigger_url, cycle_amount)
     write_audit_entry("paycheck_detected", {
         "transaction_id": transaction_id,
         "amount": paycheck_amount,
+        "contribution_amount": cycle_amount,
         "trigger_token_prefix": trigger_token[:8],
     })
     log.info(f"Paycheck detected — awaiting manual Alpaca funding for txn {transaction_id[:8]}…")
@@ -370,6 +376,7 @@ async def plaid_trigger_once(token: str, background_tasks: BackgroundTasks):
     """
     One-time DCA trigger sent in the paycheck detected email.
     Valid for 24h — fires scheduled_contribution() once Alpaca is funded.
+    Contribution amount is embedded in the token metadata.
     """
     entry = consume_action_token(token)
     if not entry or entry["type"] != "trigger":
@@ -377,13 +384,18 @@ async def plaid_trigger_once(token: str, background_tasks: BackgroundTasks):
             "❌ Not Found", "This link has expired or already been used.", "#6b7280"
         ))
     txn_id = entry["metadata"].get("transaction_id", "")
+    contribution_amount = entry["metadata"].get("contribution_amount", CONTRIBUTION_AMOUNT)
     mark_paycheck_processed(txn_id)
-    background_tasks.add_task(scheduled_contribution)
-    write_audit_entry("paycheck_trigger_once_used", {"token_prefix": token[:8], "transaction_id": txn_id})
-    log.info(f"Paycheck trigger-once used — txn {txn_id[:8]}…")
+    background_tasks.add_task(scheduled_contribution, contribution_amount)
+    write_audit_entry("paycheck_trigger_once_used", {
+        "token_prefix": token[:8],
+        "transaction_id": txn_id,
+        "contribution_amount": contribution_amount,
+    })
+    log.info(f"Paycheck trigger-once used — txn {txn_id[:8]}… amount=${contribution_amount:.2f}")
     return HTMLResponse(_result_page(
         "🚀 DCA Cycle Started",
-        "Got it — AI allocation proposal is on its way. Approval email incoming.",
+        f"Got it — allocating ${contribution_amount:.0f}. Approval email incoming.",
         "#10b981",
     ))
 
@@ -410,20 +422,22 @@ async def plaid_force(token: str, background_tasks: BackgroundTasks):
 
 
 @router.get("/trigger", response_class=HTMLResponse)
-async def plaid_manual_trigger(token: str, background_tasks: BackgroundTasks):
+async def plaid_manual_trigger(token: str, background_tasks: BackgroundTasks, amount: Optional[float] = None):
     """
     Manual DCA trigger — fires the contribution cycle directly.
     Use after funding Alpaca manually.
     Requires PLAID_MANUAL_TRIGGER_TOKEN as the `token` query param.
+    Optional: ?amount=200 to override the default $100 contribution.
     """
     if token != PLAID_MANUAL_TRIGGER_TOKEN:
         raise HTTPException(status_code=403, detail="Invalid token")
-    background_tasks.add_task(scheduled_contribution)
-    write_audit_entry("manual_trigger", {})
-    log.info("Manual DCA cycle triggered via /plaid/trigger")
+    contribution_amount = amount if amount is not None else CONTRIBUTION_AMOUNT
+    background_tasks.add_task(scheduled_contribution, contribution_amount)
+    write_audit_entry("manual_trigger", {"contribution_amount": contribution_amount})
+    log.info(f"Manual DCA cycle triggered via /plaid/trigger — ${contribution_amount:.2f}")
     return HTMLResponse(_result_page(
         "🚀 DCA Cycle Started",
-        "Manual trigger accepted. AI allocation proposal is on its way — approval email incoming.",
+        f"Manual trigger accepted — allocating ${contribution_amount:.0f}. Approval email incoming.",
         "#10b981",
     ))
 
@@ -434,15 +448,19 @@ async def plaid_manual_trigger_full(
     token: str,
     background_tasks: BackgroundTasks,
     schedule: Optional[str] = None,
+    amount: Optional[float] = None,
 ):
     """
     Manual full pipeline trigger — sends paycheck detected email with DCA link.
     Use when your paycheck deposited but the Plaid webhook missed it.
     Requires PLAID_MANUAL_TRIGGER_TOKEN as the `token` query param.
     Optional: ?schedule=HH:MM (ET, 24h) to defer to a specific time.
+    Optional: ?amount=200 to override the default $100 contribution.
     """
     if token != PLAID_MANUAL_TRIGGER_TOKEN:
         raise HTTPException(status_code=403, detail="Invalid token")
+
+    contribution_amount = amount if amount is not None else CONTRIBUTION_AMOUNT
 
     if schedule:
         try:
@@ -467,24 +485,28 @@ async def plaid_manual_trigger_full(
             run_paycheck_pipeline,
             "date",
             run_date=run_dt,
-            args=["manual_trigger_full", CONTRIBUTION_AMOUNT * -1],
+            args=["manual_trigger_full", contribution_amount * -1, contribution_amount],
             id="manual_trigger_full_scheduled",
             replace_existing=True,
         )
-        write_audit_entry("manual_trigger_full_scheduled", {"scheduled_for": run_dt.isoformat()})
-        log.info(f"Paycheck pipeline scheduled for {run_dt.strftime('%H:%M ET')}")
+        write_audit_entry("manual_trigger_full_scheduled", {
+            "scheduled_for": run_dt.isoformat(),
+            "contribution_amount": contribution_amount,
+        })
+        log.info(f"Paycheck pipeline scheduled for {run_dt.strftime('%H:%M ET')} — ${contribution_amount:.2f}")
         return HTMLResponse(_result_page(
             "⏰ Pipeline Scheduled",
-            f"Paycheck detected email will be sent at {run_dt.strftime('%-I:%M %p ET on %a %b %-d')}.",
+            f"Paycheck detected email will be sent at {run_dt.strftime('%-I:%M %p ET on %a %b %-d')} "
+            f"for ${contribution_amount:.0f}.",
             "#10b981",
         ))
 
-    background_tasks.add_task(run_paycheck_pipeline, "manual_trigger_full", CONTRIBUTION_AMOUNT * -1)
-    write_audit_entry("manual_trigger_full", {})
-    log.info("Paycheck pipeline triggered manually via /plaid/trigger-full")
+    background_tasks.add_task(run_paycheck_pipeline, "manual_trigger_full", contribution_amount * -1, contribution_amount)
+    write_audit_entry("manual_trigger_full", {"contribution_amount": contribution_amount})
+    log.info(f"Paycheck pipeline triggered manually via /plaid/trigger-full — ${contribution_amount:.2f}")
     return HTMLResponse(_result_page(
         "💰 Paycheck Email Sent",
-        f"Check your inbox — fund your Alpaca account with ${CONTRIBUTION_AMOUNT:.0f} "
+        f"Check your inbox — fund your Alpaca account with ${contribution_amount:.0f} "
         "then tap the link in the email to run the DCA cycle.",
         "#10b981",
     ))
