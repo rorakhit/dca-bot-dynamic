@@ -2,17 +2,15 @@
 plaid_routes.py — Plaid webhook, Link setup, and paycheck pipeline routes.
 
 Routes:
-  GET  /plaid/link           — one-time Plaid Link setup page
-  POST /plaid/callback       — receives public_token, stores access_token
-  POST /plaid/webhook        — Plaid TRANSACTIONS webhook (main entry point)
-  GET  /plaid/cancel/{token} — cancel paycheck cycle before ACH initiates
-  GET  /plaid/retry/{token}  — retry after ACH buying-power timeout
-  GET  /plaid/skip/{token}   — skip failed cycle (audit logged)
-  GET  /plaid/force/{token}  — cancel stale approval and run fresh cycle
-  GET  /plaid/trigger        — manual trigger (requires static secret token)
+  GET  /plaid/link              — one-time Plaid Link setup page
+  POST /plaid/callback          — receives public_token, stores access_token
+  POST /plaid/webhook           — Plaid TRANSACTIONS webhook (main entry point)
+  GET  /plaid/force/{token}     — cancel stale approval and run fresh cycle
+  GET  /plaid/trigger           — manual DCA-only trigger (Alpaca already funded)
+  GET  /plaid/trigger-full      — manual full trigger with optional ?schedule=HH:MM
+  POST /plaid/refresh-account-info — re-fetch institution name and account mask
 """
 
-import asyncio
 import json
 from datetime import datetime, timedelta
 from typing import Optional
@@ -22,17 +20,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from approval import _save_pending, create_pending_approval, pending_approvals
 from audit import write_audit_entry
-from broker import (
-    get_ach_relationship_id,
-    initiate_ach_transfer,
-    poll_for_buying_power,
-)
 from config import (
-    ACH_POLL_INTERVAL_SECONDS,
-    ACH_POLL_MAX_MINUTES,
     CONTRIBUTION_AMOUNT,
     ET,
-    PAYCHECK_CANCEL_GRACE_SECONDS,
     PLAID_MANUAL_TRIGGER_TOKEN,
     SERVER_BASE_URL,
     log,
@@ -50,7 +40,6 @@ from plaid_store import (
     consume_action_token,
     create_action_token,
     get_access_token,
-    get_action_token,
     get_cursor,
     is_paycheck_processed,
     mark_paycheck_processed,
@@ -91,66 +80,32 @@ def _result_page(title: str, body: str, color: str) -> str:
 # PLAID EMAIL FUNCTIONS
 # ─────────────────────────────────────────────
 
-def _send_paycheck_detected_email(cancel_token: str, paycheck_amount: float):
-    cancel_url = f"{SERVER_BASE_URL}/plaid/cancel/{cancel_token}"
+def _send_paycheck_detected_email(paycheck_amount: float, trigger_url: str):
     html = f"""<!DOCTYPE html>
 <html><body style="font-family:-apple-system,sans-serif;padding:24px;color:#111827">
   <div style="max-width:520px;background:#ecfdf5;border:1px solid #6ee7b7;
               border-radius:12px;padding:24px">
-    <h2 style="color:#059669;margin:0 0 12px">💰 Paycheck Detected — DCA Cycle Starting</h2>
+    <h2 style="color:#059669;margin:0 0 12px">💰 Paycheck Detected</h2>
     <p style="margin:0 0 8px">
       A deposit of <strong>${abs(paycheck_amount):.2f}</strong> from your employer was detected.
-      We're pulling <strong>${CONTRIBUTION_AMOUNT:.0f}</strong> into your Alpaca account and
-      will propose a DCA allocation shortly.
     </p>
     <p style="margin:8px 0">
-      You have <strong>5 minutes</strong> to cancel before the transfer initiates.
+      Transfer <strong>${CONTRIBUTION_AMOUNT:.0f}</strong> into your Alpaca account, then tap
+      the button below to run the DCA cycle.
     </p>
-    <a href="{cancel_url}"
-       style="display:inline-block;margin-top:12px;padding:12px 24px;
-              background:#ef4444;color:white;border-radius:8px;font-weight:600;
-              text-decoration:none">
-      🚫 Cancel this cycle
+    <a href="{trigger_url}"
+       style="display:inline-block;margin-top:16px;padding:14px 28px;
+              background:#059669;color:white;border-radius:8px;font-weight:600;
+              text-decoration:none;font-size:16px">
+      🚀 Run DCA Cycle
     </a>
     <p style="font-size:12px;color:#6b7280;margin:16px 0 0">
-      If you don't cancel, the ${CONTRIBUTION_AMOUNT:.0f} transfer will initiate automatically.
+      This link is valid for 24 hours. Only tap after funding your Alpaca account.
     </p>
   </div>
 </body></html>"""
-    _send_email("💰 Paycheck Detected — DCA Cycle Starting", html)
-    log.info(f"Paycheck detected email sent — cancel token {cancel_token[:8]}…")
-
-
-def _send_ach_timeout_email(retry_token: str, skip_token: str):
-    retry_url = f"{SERVER_BASE_URL}/plaid/retry/{retry_token}"
-    skip_url = f"{SERVER_BASE_URL}/plaid/skip/{skip_token}"
-    html = f"""<!DOCTYPE html>
-<html><body style="font-family:-apple-system,sans-serif;padding:24px;color:#111827">
-  <div style="max-width:520px;background:#fff7ed;border:1px solid #fed7aa;
-              border-radius:12px;padding:24px">
-    <h2 style="color:#ea580c;margin:0 0 12px">⏳ ACH Transfer Timeout</h2>
-    <p style="margin:0 0 8px">
-      The ${CONTRIBUTION_AMOUNT:.0f} ACH transfer to Alpaca was initiated but buying power
-      didn't appear within {ACH_POLL_MAX_MINUTES} minutes. The DCA cycle was not run.
-    </p>
-    <div style="display:flex;gap:12px;margin-top:16px">
-      <a href="{retry_url}"
-         style="flex:1;display:block;text-align:center;padding:12px;
-                background:#3b82f6;color:white;border-radius:8px;
-                font-weight:600;text-decoration:none">
-        🔄 Retry
-      </a>
-      <a href="{skip_url}"
-         style="flex:1;display:block;text-align:center;padding:12px;
-                background:#f3f4f6;color:#374151;border-radius:8px;
-                font-weight:600;text-decoration:none;border:1px solid #e5e7eb">
-        ✗ Skip this cycle
-      </a>
-    </div>
-  </div>
-</body></html>"""
-    _send_email("⏳ DCA Dynamic — ACH Transfer Timeout", html)
-    log.info("ACH timeout email sent")
+    _send_email("💰 Paycheck Detected — Fund Alpaca &amp; Run DCA", html)
+    log.info("Paycheck detected email sent")
 
 
 def _send_pending_conflict_email(force_token: str):
@@ -162,7 +117,6 @@ def _send_pending_conflict_email(force_token: str):
     <h2 style="color:#d97706;margin:0 0 12px">⚠️ Paycheck Detected — Approval Pending</h2>
     <p style="margin:0 0 8px">
       A new paycheck was detected, but a previous DCA approval is still pending.
-      The ACH transfer was skipped to avoid a double cycle.
     </p>
     <p style="margin:8px 0">Cancel the old approval and run a fresh cycle now:</p>
     <a href="{force_url}"
@@ -186,32 +140,10 @@ def _send_pending_conflict_email(force_token: str):
 
 async def run_paycheck_pipeline(transaction_id: str, paycheck_amount: float):
     """
-    Background task: cancel window → conflict check → ACH pull → poll → DCA cycle.
-    Called from the webhook handler after a paycheck is confirmed.
+    Background task: detect paycheck → check for conflicts → email user to fund
+    Alpaca and tap the DCA trigger link.
     """
-    # 1. Send detection email with cancel window
-    cancel_token = create_action_token(
-        "cancel",
-        {"transaction_id": transaction_id},
-        ttl_seconds=PAYCHECK_CANCEL_GRACE_SECONDS + 60,
-    )
-    _send_paycheck_detected_email(cancel_token, paycheck_amount)
-    write_audit_entry("paycheck_detected", {
-        "transaction_id": transaction_id,
-        "amount": paycheck_amount,
-        "cancel_token_prefix": cancel_token[:8],
-    })
-
-    # 2. Wait for cancel grace period
-    await asyncio.sleep(PAYCHECK_CANCEL_GRACE_SECONDS)
-
-    # 3. Check if user cancelled (token consumed by /plaid/cancel/{token})
-    if get_action_token(cancel_token) is None:
-        log.info(f"Paycheck cycle cancelled — txn {transaction_id[:8]}…")
-        write_audit_entry("paycheck_cycle_cancelled", {"transaction_id": transaction_id})
-        return
-
-    # 4. Check for a stale pending approval (would cause a double cycle)
+    # Check for a stale pending approval (would cause a double cycle)
     if pending_approvals:
         force_token = create_action_token(
             "force",
@@ -225,62 +157,21 @@ async def run_paycheck_pipeline(transaction_id: str, paycheck_amount: float):
         })
         return
 
-    # 5. Initiate ACH transfer
-    try:
-        relationship_id = get_ach_relationship_id()
-        transfer = initiate_ach_transfer(relationship_id, CONTRIBUTION_AMOUNT)
-        write_audit_entry("ach_transfer_initiated", {
-            "relationship_id": relationship_id,
-            "amount": CONTRIBUTION_AMOUNT,
-            "transfer_id": transfer.get("id"),
-        })
-        log.info(f"ACH transfer initiated: ${CONTRIBUTION_AMOUNT:.2f} — id={transfer.get('id')}")
-    except Exception as exc:
-        log.exception(f"ACH transfer failed: {exc}")
-        send_error_email("run_paycheck_pipeline / ACH transfer", exc)
-        return
-
-    # 6. Poll Alpaca until buying power is available
-    available = await poll_for_buying_power(
-        CONTRIBUTION_AMOUNT,
-        ACH_POLL_INTERVAL_SECONDS,
-        ACH_POLL_MAX_MINUTES,
+    # Create a one-time trigger token valid for 24h
+    trigger_token = create_action_token(
+        "trigger",
+        {"transaction_id": transaction_id},
+        ttl_seconds=86400,
     )
-    if not available:
-        retry_token = create_action_token(
-            "retry", {"transaction_id": transaction_id}, ttl_seconds=86400
-        )
-        skip_token = create_action_token(
-            "skip", {"transaction_id": transaction_id}, ttl_seconds=86400
-        )
-        _send_ach_timeout_email(retry_token, skip_token)
-        write_audit_entry("ach_poll_timeout", {"transaction_id": transaction_id})
-        return
+    trigger_url = f"{SERVER_BASE_URL}/plaid/trigger-once/{trigger_token}"
 
-    # 7. Fire the DCA cycle (same path as the old 1st/16th cron)
-    log.info("Buying power confirmed — firing DCA contribution cycle")
-    await scheduled_contribution()
-    mark_paycheck_processed(transaction_id)
-
-
-async def _retry_pipeline(transaction_id: str):
-    """Re-poll and fire DCA cycle. Used by the retry email action."""
-    available = await poll_for_buying_power(
-        CONTRIBUTION_AMOUNT,
-        ACH_POLL_INTERVAL_SECONDS,
-        ACH_POLL_MAX_MINUTES,
-    )
-    if not available:
-        retry_token = create_action_token(
-            "retry", {"transaction_id": transaction_id}, ttl_seconds=86400
-        )
-        skip_token = create_action_token(
-            "skip", {"transaction_id": transaction_id}, ttl_seconds=86400
-        )
-        _send_ach_timeout_email(retry_token, skip_token)
-        return
-    await scheduled_contribution()
-    mark_paycheck_processed(transaction_id)
+    _send_paycheck_detected_email(paycheck_amount, trigger_url)
+    write_audit_entry("paycheck_detected", {
+        "transaction_id": transaction_id,
+        "amount": paycheck_amount,
+        "trigger_token_prefix": trigger_token[:8],
+    })
+    log.info(f"Paycheck detected — awaiting manual Alpaca funding for txn {transaction_id[:8]}…")
 
 
 # ─────────────────────────────────────────────
@@ -474,63 +365,32 @@ async def plaid_webhook(request: Request, background_tasks: BackgroundTasks):
     return {"status": "ok"}
 
 
-@router.get("/cancel/{token}", response_class=HTMLResponse)
-async def plaid_cancel(token: str):
-    """Cancel a pending paycheck cycle before the ACH transfer initiates."""
+@router.get("/trigger-once/{token}", response_class=HTMLResponse)
+async def plaid_trigger_once(token: str, background_tasks: BackgroundTasks):
+    """
+    One-time DCA trigger sent in the paycheck detected email.
+    Valid for 24h — fires scheduled_contribution() once Alpaca is funded.
+    """
     entry = consume_action_token(token)
-    if not entry or entry["type"] != "cancel":
-        return HTMLResponse(_result_page(
-            "❌ Not Found", "This link has expired or already been used.", "#6b7280"
-        ))
-    write_audit_entry("paycheck_cycle_cancelled", {"token_prefix": token[:8]})
-    log.info(f"Paycheck cycle cancelled via email link — {token[:8]}…")
-    return HTMLResponse(_result_page(
-        "🚫 Cycle Cancelled",
-        "The DCA cycle was cancelled. No money will be transferred.",
-        "#ef4444",
-    ))
-
-
-@router.get("/retry/{token}", response_class=HTMLResponse)
-async def plaid_retry(token: str, background_tasks: BackgroundTasks):
-    """Re-poll Alpaca buying power and retry the DCA cycle after an ACH timeout."""
-    entry = consume_action_token(token)
-    if not entry or entry["type"] != "retry":
-        return HTMLResponse(_result_page(
-            "❌ Not Found", "This link has expired or already been used.", "#6b7280"
-        ))
-    txn_id = entry["metadata"].get("transaction_id", "")
-    background_tasks.add_task(_retry_pipeline, txn_id)
-    write_audit_entry("ach_retry_requested", {"token_prefix": token[:8], "transaction_id": txn_id})
-    return HTMLResponse(_result_page(
-        "🔄 Retrying",
-        "Checking buying power and retrying the DCA cycle. Approval email incoming.",
-        "#3b82f6",
-    ))
-
-
-@router.get("/skip/{token}", response_class=HTMLResponse)
-async def plaid_skip(token: str):
-    """Skip a failed cycle. Marks transaction as processed so it won't retry."""
-    entry = consume_action_token(token)
-    if not entry or entry["type"] != "skip":
+    if not entry or entry["type"] != "trigger":
         return HTMLResponse(_result_page(
             "❌ Not Found", "This link has expired or already been used.", "#6b7280"
         ))
     txn_id = entry["metadata"].get("transaction_id", "")
     mark_paycheck_processed(txn_id)
-    write_audit_entry("paycheck_cycle_skipped", {"token_prefix": token[:8], "transaction_id": txn_id})
-    log.info(f"Paycheck cycle skipped — {txn_id[:8]}…")
+    background_tasks.add_task(scheduled_contribution)
+    write_audit_entry("paycheck_trigger_once_used", {"token_prefix": token[:8], "transaction_id": txn_id})
+    log.info(f"Paycheck trigger-once used — txn {txn_id[:8]}…")
     return HTMLResponse(_result_page(
-        "✗ Cycle Skipped",
-        "This DCA cycle was skipped. No orders were placed.",
-        "#6b7280",
+        "🚀 DCA Cycle Started",
+        "Got it — AI allocation proposal is on its way. Approval email incoming.",
+        "#10b981",
     ))
 
 
 @router.get("/force/{token}", response_class=HTMLResponse)
 async def plaid_force(token: str, background_tasks: BackgroundTasks):
-    """Cancel stale pending approval and start a fresh paycheck pipeline."""
+    """Cancel stale pending approval and re-send paycheck detected email."""
     entry = consume_action_token(token)
     if not entry or entry["type"] != "force":
         return HTMLResponse(_result_page(
@@ -544,7 +404,7 @@ async def plaid_force(token: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(run_paycheck_pipeline, txn_id, paycheck_amount)
     return HTMLResponse(_result_page(
         "🔄 Running New Cycle",
-        "Old approval cancelled. A fresh DCA cycle is starting — approval email incoming.",
+        "Old approval cancelled. Paycheck detected email resent — check your inbox.",
         "#f97316",
     ))
 
@@ -552,8 +412,8 @@ async def plaid_force(token: str, background_tasks: BackgroundTasks):
 @router.get("/trigger", response_class=HTMLResponse)
 async def plaid_manual_trigger(token: str, background_tasks: BackgroundTasks):
     """
-    Manual trigger: fire the DCA contribution cycle directly (no ACH pull).
-    Use when you've funded Alpaca manually and Plaid missed the deposit.
+    Manual DCA trigger — fires the contribution cycle directly.
+    Use after funding Alpaca manually.
     Requires PLAID_MANUAL_TRIGGER_TOKEN as the `token` query param.
     """
     if token != PLAID_MANUAL_TRIGGER_TOKEN:
@@ -576,10 +436,10 @@ async def plaid_manual_trigger_full(
     schedule: Optional[str] = None,
 ):
     """
-    Full pipeline trigger: ACH pull from bank → poll for buying power → DCA cycle.
+    Manual full pipeline trigger — sends paycheck detected email with DCA link.
     Use when your paycheck deposited but the Plaid webhook missed it.
     Requires PLAID_MANUAL_TRIGGER_TOKEN as the `token` query param.
-    Optional: ?schedule=HH:MM (ET, 24h) to defer the pipeline to a specific time today.
+    Optional: ?schedule=HH:MM (ET, 24h) to defer to a specific time.
     """
     if token != PLAID_MANUAL_TRIGGER_TOKEN:
         raise HTTPException(status_code=403, detail="Invalid token")
@@ -612,20 +472,19 @@ async def plaid_manual_trigger_full(
             replace_existing=True,
         )
         write_audit_entry("manual_trigger_full_scheduled", {"scheduled_for": run_dt.isoformat()})
-        log.info(f"Full paycheck pipeline scheduled for {run_dt.strftime('%H:%M ET')}")
+        log.info(f"Paycheck pipeline scheduled for {run_dt.strftime('%H:%M ET')}")
         return HTMLResponse(_result_page(
             "⏰ Pipeline Scheduled",
-            f"Full pipeline will start at {run_dt.strftime('%-I:%M %p ET on %a %b %-d')}. "
-            "Cancel email will arrive then — you'll have 5 minutes to abort.",
+            f"Paycheck detected email will be sent at {run_dt.strftime('%-I:%M %p ET on %a %b %-d')}.",
             "#10b981",
         ))
 
     background_tasks.add_task(run_paycheck_pipeline, "manual_trigger_full", CONTRIBUTION_AMOUNT * -1)
     write_audit_entry("manual_trigger_full", {})
-    log.info("Full paycheck pipeline triggered manually via /plaid/trigger-full")
+    log.info("Paycheck pipeline triggered manually via /plaid/trigger-full")
     return HTMLResponse(_result_page(
-        "🏦 Full Pipeline Started",
-        f"ACH transfer of ${CONTRIBUTION_AMOUNT:.0f} initiating from your bank. "
-        "Cancel email sent — you have 5 minutes to abort before the transfer goes through.",
+        "💰 Paycheck Email Sent",
+        f"Check your inbox — fund your Alpaca account with ${CONTRIBUTION_AMOUNT:.0f} "
+        "then tap the link in the email to run the DCA cycle.",
         "#10b981",
     ))
