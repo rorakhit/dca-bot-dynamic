@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1208"/>
+      <stop offset="100%" stop-color="#0a0805"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="chart" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.18"/>
+    </linearGradient>
+    <clipPath id="inner">
+      <rect x="6" y="6" width="52" height="52" rx="12"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect x="6" y="6" width="52" height="52" rx="12" fill="url(#bg)"/>
+
+  <!-- Subtle grid lines -->
+  <g clip-path="url(#inner)" opacity="0.07">
+    <line x1="6" y1="22" x2="58" y2="22" stroke="#f59e0b" stroke-width="0.5"/>
+    <line x1="6" y1="36" x2="58" y2="36" stroke="#f59e0b" stroke-width="0.5"/>
+    <line x1="6" y1="50" x2="58" y2="50" stroke="#f59e0b" stroke-width="0.5"/>
+    <line x1="20" y1="6" x2="20" y2="58" stroke="#f59e0b" stroke-width="0.5"/>
+    <line x1="34" y1="6" x2="34" y2="58" stroke="#f59e0b" stroke-width="0.5"/>
+    <line x1="48" y1="6" x2="48" y2="58" stroke="#f59e0b" stroke-width="0.5"/>
+  </g>
+
+  <!-- Chart area fill -->
+  <polygon
+    points="10,46 18,38 26,40 34,30 42,26 54,18 54,50 10,50"
+    fill="url(#chart)"
+    clip-path="url(#inner)"
+  />
+
+  <!-- Chart line -->
+  <polyline
+    points="10,46 18,38 26,40 34,30 42,26 54,18"
+    fill="none"
+    stroke="url(#amber)"
+    stroke-width="2.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    clip-path="url(#inner)"
+  />
+
+  <!-- Data point dots -->
+  <circle cx="18" cy="38" r="1.8" fill="#f59e0b" opacity="0.7"/>
+  <circle cx="34" cy="30" r="1.8" fill="#f59e0b" opacity="0.7"/>
+  <circle cx="42" cy="26" r="1.8" fill="#f59e0b" opacity="0.7"/>
+
+  <!-- Top-right glow dot (active indicator) -->
+  <circle cx="54" cy="18" r="3.5" fill="#f59e0b" opacity="0.15"/>
+  <circle cx="54" cy="18" r="2" fill="#f59e0b"/>
+
+  <!-- Border -->
+  <rect x="6" y="6" width="52" height="52" rx="12" fill="none" stroke="rgba(245,158,11,0.2)" stroke-width="1"/>
+</svg>
