@@ -5,7 +5,9 @@ Handles: link token creation, public→access token exchange,
          transaction sync, webhook JWT verification, paycheck detection.
 """
 
+import calendar
 import hashlib
+from datetime import date, timedelta
 
 import plaid
 from plaid.api import plaid_api
@@ -130,22 +132,59 @@ def sync_transactions(access_token: str, cursor: str | None) -> tuple[list[dict]
 # PAYCHECK DETECTION
 # ─────────────────────────────────────────────
 
+def _expected_pay_dates(txn_date: date) -> list[date]:
+    """
+    Return the two expected pay dates for the month containing txn_date.
+    Pay days are the 15th and last day of the month.
+    If either falls on a Saturday or Sunday, pay moves to the preceding Friday.
+    """
+    year, month = txn_date.year, txn_date.month
+    last_day = calendar.monthrange(year, month)[1]
+    candidates = [date(year, month, 15), date(year, month, last_day)]
+    pay_dates = []
+    for d in candidates:
+        if d.weekday() == 5:    # Saturday → Friday
+            d -= timedelta(days=1)
+        elif d.weekday() == 6:  # Sunday → Friday
+            d -= timedelta(days=2)
+        pay_dates.append(d)
+    return pay_dates
+
+
+def _is_near_pay_date(txn_date: date, window: int = 2) -> bool:
+    """Return True if txn_date is within `window` days of an expected pay date."""
+    for pay_date in _expected_pay_dates(txn_date):
+        if abs((txn_date - pay_date).days) <= window:
+            return True
+    return False
+
+
 def is_paycheck(transaction: dict) -> bool:
     """
     Returns True if the Plaid transaction looks like the user's paycheck.
 
-    Requires all three:
+    Requires all four:
     - amount is negative (credit — money entering the account)
     - abs(amount) >= PAYCHECK_MIN_AMOUNT (575.00)
     - transaction name contains PAYCHECK_EMPLOYER_KEYWORD (case-insensitive)
+    - transaction date falls within ±2 days of the 15th or last day of the month
+      (adjusted for weekends — Saturday/Sunday both shift pay to the preceding Friday)
     """
     amount = transaction.get("amount", 0)
     name = transaction.get("name", "")
-    return (
-        amount < 0
-        and abs(amount) >= PAYCHECK_MIN_AMOUNT
-        and PAYCHECK_EMPLOYER_KEYWORD.lower() in name.lower()
-    )
+
+    if not (amount < 0 and abs(amount) >= PAYCHECK_MIN_AMOUNT):
+        return False
+    if PAYCHECK_EMPLOYER_KEYWORD.lower() not in name.lower():
+        return False
+
+    raw_date = transaction.get("date")
+    if raw_date:
+        txn_date = date.fromisoformat(str(raw_date)) if not isinstance(raw_date, date) else raw_date
+        if not _is_near_pay_date(txn_date):
+            return False
+
+    return True
 
 
 # ─────────────────────────────────────────────
