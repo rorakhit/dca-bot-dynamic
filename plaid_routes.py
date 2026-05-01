@@ -14,6 +14,8 @@ Routes:
 
 import asyncio
 import json
+from datetime import datetime, date as date_type
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -566,14 +568,61 @@ async def plaid_manual_trigger(token: str, background_tasks: BackgroundTasks):
 
 
 @router.get("/trigger-full", response_class=HTMLResponse)
-async def plaid_manual_trigger_full(token: str, background_tasks: BackgroundTasks):
+async def plaid_manual_trigger_full(
+    request: Request,
+    token: str,
+    background_tasks: BackgroundTasks,
+    schedule: Optional[str] = None,
+):
     """
     Full pipeline trigger: ACH pull from bank → poll for buying power → DCA cycle.
     Use when your paycheck deposited but the Plaid webhook missed it.
     Requires PLAID_MANUAL_TRIGGER_TOKEN as the `token` query param.
+    Optional: ?schedule=HH:MM (ET, 24h) to defer the pipeline to a specific time today.
     """
     if token != PLAID_MANUAL_TRIGGER_TOKEN:
         raise HTTPException(status_code=403, detail="Invalid token")
+
+    if schedule:
+        try:
+            run_time_naive = datetime.strptime(schedule, "%H:%M")
+            run_dt = datetime.now(ET).replace(
+                hour=run_time_naive.hour,
+                minute=run_time_naive.minute,
+                second=0,
+                microsecond=0,
+            )
+            if run_dt <= datetime.now(ET):
+                return HTMLResponse(_result_page(
+                    "⚠️ Time Already Passed",
+                    f"{schedule} ET has already passed today. Use a future time.",
+                    "#d97706",
+                ))
+        except ValueError:
+            return HTMLResponse(_result_page(
+                "⚠️ Invalid Time",
+                "Use HH:MM format in 24h ET, e.g. ?schedule=10:00 or ?schedule=14:30",
+                "#d97706",
+            ))
+
+        scheduler = request.app.state.scheduler
+        scheduler.add_job(
+            run_paycheck_pipeline,
+            "date",
+            run_date=run_dt,
+            args=["manual_trigger_full", CONTRIBUTION_AMOUNT * -1],
+            id="manual_trigger_full_scheduled",
+            replace_existing=True,
+        )
+        write_audit_entry("manual_trigger_full_scheduled", {"scheduled_for": run_dt.isoformat()})
+        log.info(f"Full paycheck pipeline scheduled for {run_dt.strftime('%H:%M ET')}")
+        return HTMLResponse(_result_page(
+            "⏰ Pipeline Scheduled",
+            f"Full pipeline will start at {run_dt.strftime('%-I:%M %p ET')} today. "
+            "Cancel email will arrive then — you'll have 5 minutes to abort.",
+            "#10b981",
+        ))
+
     background_tasks.add_task(run_paycheck_pipeline, "manual_trigger_full", CONTRIBUTION_AMOUNT * -1)
     write_audit_entry("manual_trigger_full", {})
     log.info("Full paycheck pipeline triggered manually via /plaid/trigger-full")
