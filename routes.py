@@ -15,8 +15,8 @@ Endpoints:
 
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from ai import ask_ai_for_dynamic_allocation
 from approval import (
@@ -26,6 +26,7 @@ from approval import (
     pending_approvals,
 )
 from audit import get_audit_history_summary, read_audit_log, write_audit_entry
+from auth import COOKIE_NAME, DASHBOARD_SECRET, LOGIN_HTML, is_authenticated, require_auth
 from broker import (
     broker,
     fetch_market_data,
@@ -41,18 +42,60 @@ router = APIRouter()
 
 
 # ─────────────────────────────────────────────
-# DASHBOARD ENDPOINTS
+# AUTH ENDPOINTS
 # ─────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)
-def landing_page():
+def login_page(request: Request):
+    """Login page — redirects to dashboard if already authenticated."""
+    if is_authenticated(request):
+        return RedirectResponse(url="/dashboard-home", status_code=302)
+    return HTMLResponse(LOGIN_HTML)
+
+
+@router.post("/auth")
+async def auth_login(request: Request):
+    body = await request.json()
+    if body.get("secret") != DASHBOARD_SECRET:
+        return JSONResponse({"error": "Invalid secret"}, status_code=403)
+    response = JSONResponse({"ok": True})
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=DASHBOARD_SECRET,
+        httponly=True,
+        samesite="strict",
+        path="/",
+        max_age=30 * 24 * 60 * 60,
+    )
+    return response
+
+
+@router.get("/auth/logout")
+def auth_logout():
+    response = RedirectResponse(url="/", status_code=302)
+    response.delete_cookie(COOKIE_NAME, path="/")
+    return response
+
+
+# ─────────────────────────────────────────────
+# DASHBOARD ENDPOINTS (protected)
+# ─────────────────────────────────────────────
+
+@router.get("/dashboard-home", response_class=HTMLResponse)
+def landing_page(request: Request):
     """Desktop-optimized portfolio dashboard."""
+    redirect = require_auth(request)
+    if redirect:
+        return redirect
     return HTMLResponse(LANDING_HTML)
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def dashboard():
+def dashboard(request: Request):
     """Mobile-friendly portfolio dashboard."""
+    redirect = require_auth(request)
+    if redirect:
+        return redirect
     return HTMLResponse(DASHBOARD_HTML)
 
 
