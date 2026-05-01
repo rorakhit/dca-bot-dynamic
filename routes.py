@@ -100,6 +100,117 @@ def dashboard(request: Request):
 
 
 # ─────────────────────────────────────────────
+# DEMO (public, fake data)
+# ─────────────────────────────────────────────
+
+DEMO_AUDIT = [
+    {
+        "event": "dynamic_allocation_proposed",
+        "timestamp": "2026-04-30T14:02:11.443Z",
+        "adjusted_targets": {"VTI": 0.52, "VXUS": 0.33, "AVUV": 0.10, "BND": 0.05},
+        "weight_reasoning": "Tilting slightly toward VTI given continued US large-cap momentum. VXUS trimmed modestly — international volatility remains elevated. AVUV held at base; small-cap value factor showing early signs of mean reversion. BND unchanged, rates still restrictive.",
+        "allocations": {"VTI": 52.00, "VXUS": 33.00, "AVUV": 10.00, "BND": 5.00},
+        "allocation_reasoning": "Portfolio is underweight VTI by 1.8% and overweight VXUS by 2.1%. Full $100 directed toward closing both gaps — $52 to VTI, $33 to VXUS, $10 to AVUV to maintain factor exposure, $5 to BND.",
+        "new_cash": 100.0,
+    },
+    {
+        "event": "paycheck_detected",
+        "timestamp": "2026-04-30T13:58:04.112Z",
+        "amount": -2840.50,
+        "contribution_amount": 100.0,
+    },
+    {
+        "event": "dynamic_allocation_proposed",
+        "timestamp": "2026-04-15T14:11:33.201Z",
+        "adjusted_targets": {"VTI": 0.50, "VXUS": 0.35, "AVUV": 0.08, "BND": 0.07},
+        "weight_reasoning": "Holding base weights on VTI and VXUS — no strong directional signal. Trimming AVUV slightly; small-cap value underperformed over the trailing quarter. Adding marginal allocation to BND as a volatility hedge.",
+        "allocations": {"VTI": 50.00, "VXUS": 35.00, "AVUV": 8.00, "BND": 7.00},
+        "allocation_reasoning": "Drift is minimal across all positions. Allocating proportionally to adjusted targets — $50 VTI, $35 VXUS, $8 AVUV, $7 BND.",
+        "new_cash": 100.0,
+    },
+    {
+        "event": "paycheck_detected",
+        "timestamp": "2026-04-15T13:55:17.009Z",
+        "amount": -2840.50,
+        "contribution_amount": 100.0,
+    },
+    {
+        "event": "portfolio_snapshot",
+        "timestamp": "2026-04-15T14:10:55.883Z",
+        "holdings": {
+            "VTI":  {"market_value": 12480.22, "weight": 0.511, "unrealized_pl": 1840.10},
+            "VXUS": {"market_value":  8421.85, "weight": 0.345, "unrealized_pl":  620.34},
+            "AVUV": {"market_value":  2318.44, "weight": 0.095, "unrealized_pl":  218.90},
+            "BND":  {"market_value":  1220.10, "weight": 0.050, "unrealized_pl":   12.44},
+        },
+    },
+]
+
+DEMO_PORTFOLIO = {
+    "total_value": 24440.61,
+    "cash": 0.00,
+    "cost_basis": 21748.83,
+    "unrealized_pl": 2691.78,
+    "holdings": {
+        "VTI":  {"market_value": 12880.44, "weight": 0.5270, "unrealized_pl": 2040.10, "qty": 51.2},
+        "VXUS": {"market_value":  8521.85, "weight": 0.3487, "unrealized_pl":  720.34, "qty": 148.6},
+        "AVUV": {"market_value":  2318.22, "weight": 0.0948, "unrealized_pl":  218.90, "qty": 29.1},
+        "BND":  {"market_value":   720.10, "weight": 0.0295, "unrealized_pl":   12.44, "qty": 9.8},
+    },
+}
+
+DEMO_HEALTH = {
+    "status": "ok",
+    "errors": [],
+    "paper_trading": False,
+    "strategy": "dynamic",
+    "market_open": False,
+    "trading_day": True,
+    "pending_approvals": 0,
+    "next_contribution": "event_driven",
+    "account_value_usd": 24440.61,
+    "server_time_et": "2026-04-30T14:05:00-04:00",
+    "fund_lineup": ["VTI", "VXUS", "AVUV", "BND"],
+    "plaid_institution": "SoFi",
+    "plaid_account_mask": "5266",
+}
+
+
+@router.get("/demo", response_class=HTMLResponse)
+def demo_dashboard():
+    """Public demo dashboard with fake data — no auth required."""
+    html = (
+        LANDING_HTML
+        .replace("fetch('/portfolio')", "fetch('/demo/portfolio')")
+        .replace("fetch('/health')", "fetch('/demo/health')")
+        .replace("fetch('/audit')", "fetch('/demo/audit')")
+    )
+    demo_banner = """<div style="position:fixed;top:0;left:0;right:0;z-index:999;
+      background:rgba(245,158,11,0.12);border-bottom:1px solid rgba(245,158,11,0.25);
+      padding:8px;text-align:center;font-family:-apple-system,sans-serif;
+      font-size:12px;font-weight:600;letter-spacing:0.05em;color:#f59e0b">
+      DEMO — simulated data only
+    </div>"""
+    html = html.replace("<body>", f"<body>{demo_banner}", 1)
+    return HTMLResponse(html)
+
+
+@router.get("/demo/portfolio")
+def demo_portfolio():
+    return JSONResponse(DEMO_PORTFOLIO)
+
+
+@router.get("/demo/health")
+def demo_health():
+    return JSONResponse(DEMO_HEALTH)
+
+
+@router.get("/demo/audit")
+def demo_audit():
+    return JSONResponse(DEMO_AUDIT)
+
+
+# ─────────────────────────────────────────────
 # HEALTH ENDPOINT
 # ─────────────────────────────────────────────
 
