@@ -433,6 +433,8 @@ async def plaid_webhook(request: Request, background_tasks: BackgroundTasks):
     webhook_type = payload.get("webhook_type")
     webhook_code = payload.get("webhook_code")
 
+    log.info(f"Plaid webhook received: type={webhook_type} code={webhook_code}")
+
     if webhook_type != "TRANSACTIONS" or webhook_code != "SYNC_UPDATES_AVAILABLE":
         return {"status": "ignored", "webhook_type": webhook_type, "webhook_code": webhook_code}
 
@@ -447,6 +449,13 @@ async def plaid_webhook(request: Request, background_tasks: BackgroundTasks):
     cursor = get_cursor()
     added, next_cursor = sync_transactions(access_token, cursor)
     set_cursor(next_cursor)
+
+    log.info(f"Plaid sync: {len(added)} added transaction(s)")
+    for txn in added:
+        log.info(
+            f"  txn: name={txn.get('name')!r} amount={txn.get('amount')} "
+            f"date={txn.get('date')} id={txn.get('transaction_id', '')[:8]}…"
+        )
 
     for txn in added:
         txn_id = txn.get("transaction_id", "")
@@ -552,5 +561,25 @@ async def plaid_manual_trigger(token: str, background_tasks: BackgroundTasks):
     return HTMLResponse(_result_page(
         "🚀 DCA Cycle Started",
         "Manual trigger accepted. AI allocation proposal is on its way — approval email incoming.",
+        "#10b981",
+    ))
+
+
+@router.get("/trigger-full", response_class=HTMLResponse)
+async def plaid_manual_trigger_full(token: str, background_tasks: BackgroundTasks):
+    """
+    Full pipeline trigger: ACH pull from bank → poll for buying power → DCA cycle.
+    Use when your paycheck deposited but the Plaid webhook missed it.
+    Requires PLAID_MANUAL_TRIGGER_TOKEN as the `token` query param.
+    """
+    if token != PLAID_MANUAL_TRIGGER_TOKEN:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    background_tasks.add_task(run_paycheck_pipeline, "manual_trigger_full", CONTRIBUTION_AMOUNT * -1)
+    write_audit_entry("manual_trigger_full", {})
+    log.info("Full paycheck pipeline triggered manually via /plaid/trigger-full")
+    return HTMLResponse(_result_page(
+        "🏦 Full Pipeline Started",
+        f"ACH transfer of ${CONTRIBUTION_AMOUNT:.0f} initiating from your bank. "
+        "Cancel email sent — you have 5 minutes to abort before the transfer goes through.",
         "#10b981",
     ))
