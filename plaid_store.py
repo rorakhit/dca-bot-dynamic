@@ -15,6 +15,7 @@ _DEFAULT: dict = {
     "access_token": None,
     "cursor": None,
     "processed_ids": [],
+    "last_paycheck_date": None,  # ISO date string of most recently processed paycheck
     "action_tokens": {},
     "institution_name": None,
     "account_mask": None,
@@ -97,7 +98,14 @@ def mark_paycheck_processed(transaction_id: str):
     if transaction_id not in ids:
         ids.append(transaction_id)
     data["processed_ids"] = ids[-100:]  # keep last 100, discard oldest
+    data["last_paycheck_date"] = datetime.now(ET).date().isoformat()
     _save(data)
+
+
+def get_last_paycheck_date() -> "date | None":
+    from datetime import date
+    raw = _load().get("last_paycheck_date")
+    return date.fromisoformat(raw) if raw else None
 
 
 # ─────────────────────────────────────────────

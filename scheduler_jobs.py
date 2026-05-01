@@ -331,6 +331,65 @@ def dca_contribution_report():
 
 
 # ─────────────────────────────────────────────
+# PAYCHECK POLL FALLBACK (every 2h, 8am–4pm ET, on pay date windows)
+# ─────────────────────────────────────────────
+
+async def poll_for_paycheck():
+    """
+    Fallback for missed Plaid webhooks. Runs every 2 hours during market hours
+    on pay date windows. Syncs transactions and triggers the pipeline if a
+    paycheck is found that hasn't been processed yet.
+    Stops polling for the rest of the window once a paycheck is processed.
+    """
+    from plaid_client import _expected_pay_dates, _is_near_pay_date, is_paycheck, sync_transactions
+    from plaid_routes import run_paycheck_pipeline
+    from plaid_store import (
+        get_access_token,
+        get_cursor,
+        get_last_paycheck_date,
+        is_paycheck_processed,
+        set_cursor,
+    )
+
+    today = datetime.now(ET).date()
+    if not _is_near_pay_date(today):
+        return
+
+    # Skip if a paycheck was already processed within this pay window (±2 days of same pay date)
+    last_processed = get_last_paycheck_date()
+    if last_processed:
+        for pay_date in _expected_pay_dates(today):
+            if abs((last_processed - pay_date).days) <= 2:
+                log.info("Paycheck poll: paycheck already processed this window — skipping")
+                return
+
+    access_token = get_access_token()
+    if not access_token:
+        return
+
+    log.info("Paycheck poll: within pay window — syncing transactions")
+    try:
+        cursor = get_cursor()
+        added, next_cursor = sync_transactions(access_token, cursor)
+        set_cursor(next_cursor)
+    except Exception as exc:
+        log.warning(f"Paycheck poll sync failed: {exc}")
+        return
+
+    for txn in added:
+        txn_id = txn.get("transaction_id", "")
+        if not is_paycheck(txn):
+            continue
+        if is_paycheck_processed(txn_id):
+            log.info(f"Paycheck poll: txn {txn_id[:8]}… already processed — skipping")
+            continue
+        log.info(f"Paycheck poll: detected {txn.get('name')} ${abs(txn.get('amount', 0)):.2f} — triggering pipeline")
+        import asyncio
+        asyncio.create_task(run_paycheck_pipeline(txn_id, txn.get("amount", 0)))
+        break
+
+
+# ─────────────────────────────────────────────
 # EXPIRE PLAID TOKENS (daily 5pm ET)
 # ─────────────────────────────────────────────
 

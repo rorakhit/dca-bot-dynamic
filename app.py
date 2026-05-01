@@ -27,6 +27,7 @@ from scheduler_jobs import (
     dca_contribution_report,
     expire_pending,
     expire_plaid_tokens,
+    poll_for_paycheck,
 )
 
 # ─────────────────────────────────────────────
@@ -63,6 +64,15 @@ scheduler.add_job(
     id="dca_contribution_report",
 )
 
+# Paycheck poll fallback: every 2 hours 8am–4pm ET, no-ops outside pay date windows
+scheduler.add_job(
+    poll_for_paycheck,
+    "cron",
+    hour="8,10,12,14,16",
+    minute=0,
+    id="poll_for_paycheck",
+)
+
 
 # ─────────────────────────────────────────────
 # LIFESPAN
@@ -75,8 +85,9 @@ async def lifespan(app: FastAPI):
         "Scheduler started — LIVE TRADING. Jobs: "
         "expire_pending@17:00 daily, "
         "expire_plaid_tokens@17:00 daily, "
-        "report@12:00 on 1st/16th. "
-        "Contributions triggered by Plaid paycheck webhook."
+        "report@12:00 on 1st/16th, "
+        "poll_for_paycheck@8/10/12/14/16 on pay windows. "
+        "Contributions triggered by Plaid paycheck webhook + polling fallback."
     )
     yield
     scheduler.shutdown()
