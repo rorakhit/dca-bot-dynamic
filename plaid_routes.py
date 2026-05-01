@@ -14,7 +14,7 @@ Routes:
 
 import asyncio
 import json
-from datetime import datetime, date as date_type
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
@@ -594,11 +594,7 @@ async def plaid_manual_trigger_full(
                 microsecond=0,
             )
             if run_dt <= datetime.now(ET):
-                return HTMLResponse(_result_page(
-                    "⚠️ Time Already Passed",
-                    f"{schedule} ET has already passed today. Use a future time.",
-                    "#d97706",
-                ))
+                run_dt += timedelta(days=1)
         except ValueError:
             return HTMLResponse(_result_page(
                 "⚠️ Invalid Time",
@@ -619,7 +615,7 @@ async def plaid_manual_trigger_full(
         log.info(f"Full paycheck pipeline scheduled for {run_dt.strftime('%H:%M ET')}")
         return HTMLResponse(_result_page(
             "⏰ Pipeline Scheduled",
-            f"Full pipeline will start at {run_dt.strftime('%-I:%M %p ET')} today. "
+            f"Full pipeline will start at {run_dt.strftime('%-I:%M %p ET on %a %b %-d')}. "
             "Cancel email will arrive then — you'll have 5 minutes to abort.",
             "#10b981",
         ))
