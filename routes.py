@@ -130,6 +130,7 @@ DEMO_AUDIT = [
             "AVUV": {"market_value":  2218.22, "weight": 0.0911, "unrealized_pl":  118.90},
             "BND":  {"market_value":   720.10, "weight": 0.0296, "unrealized_pl":   12.44},
         },
+        "drift_from_target": {"VTI": 0.0249, "VXUS": 0.0041, "AVUV": -0.0089, "BND": -0.0204},
     },
     {
         "event": "dynamic_allocation_proposed",
@@ -157,6 +158,7 @@ DEMO_AUDIT = [
             "AVUV": {"market_value":  2318.44, "weight": 0.0960, "unrealized_pl":  218.90},
             "BND":  {"market_value":   920.10, "weight": 0.0381, "unrealized_pl":   12.44},
         },
+        "drift_from_target": {"VTI": 0.0170, "VXUS": -0.0011, "AVUV": -0.0040, "BND": -0.0119},
     },
     {
         "event": "portfolio_snapshot",
@@ -169,6 +171,7 @@ DEMO_AUDIT = [
             "AVUV": {"market_value":  2418.58, "weight": 0.1023, "unrealized_pl":  318.30},
             "BND":  {"market_value":   920.10, "weight": 0.0389, "unrealized_pl":   12.44},
         },
+        "drift_from_target": {"VTI": 0.0152, "VXUS": -0.0064, "AVUV": 0.0023, "BND": -0.0111},
     },
     {
         "event": "portfolio_snapshot",
@@ -181,19 +184,47 @@ DEMO_AUDIT = [
             "AVUV": {"market_value":  2358.80, "weight": 0.1026, "unrealized_pl":  258.52},
             "BND":  {"market_value":   920.10, "weight": 0.0400, "unrealized_pl":   12.44},
         },
+        "drift_from_target": {"VTI": 0.0170, "VXUS": -0.0097, "AVUV": 0.0026, "BND": -0.0100},
+    },
+    {
+        "event": "portfolio_snapshot",
+        "timestamp": "2026-02-28T14:03:44.001Z",
+        "total_value": 21840.10,
+        "cash_available": 0.00,
+        "holdings": {
+            "VTI":  {"market_value": 11180.10, "weight": 0.5119, "unrealized_pl":  840.10},
+            "VXUS": {"market_value":  7521.44, "weight": 0.3443, "unrealized_pl": -180.44},
+            "AVUV": {"market_value":  2218.46, "weight": 0.1015, "unrealized_pl":  118.18},
+            "BND":  {"market_value":   920.10, "weight": 0.0421, "unrealized_pl":   12.44},
+        },
+        "drift_from_target": {"VTI": 0.0119, "VXUS": -0.0057, "AVUV": 0.0015, "BND": -0.0079},
+    },
+    {
+        "event": "portfolio_snapshot",
+        "timestamp": "2026-02-15T14:01:22.001Z",
+        "total_value": 20640.88,
+        "cash_available": 0.00,
+        "holdings": {
+            "VTI":  {"market_value": 10480.10, "weight": 0.5077, "unrealized_pl":  340.10},
+            "VXUS": {"market_value":  7321.44, "weight": 0.3547, "unrealized_pl": -280.44},
+            "AVUV": {"market_value":  2018.24, "weight": 0.0978, "unrealized_pl":  -81.94},
+            "BND":  {"market_value":   821.10, "weight": 0.0398, "unrealized_pl":    4.44},
+        },
+        "drift_from_target": {"VTI": 0.0077, "VXUS": 0.0047, "AVUV": -0.0022, "BND": -0.0102},
     },
 ]
 
 DEMO_PORTFOLIO = {
     "total_value": 24440.61,
     "cash_available": 0.00,
-    "unrealized_pl": 2691.78,
     "holdings": {
-        "VTI":  {"market_value": 12880.44, "weight": 0.5270, "unrealized_pl": 2040.10, "qty": 51.2},
-        "VXUS": {"market_value":  8521.85, "weight": 0.3487, "unrealized_pl":  720.34, "qty": 148.6},
-        "AVUV": {"market_value":  2318.22, "weight": 0.0948, "unrealized_pl":  218.90, "qty": 29.1},
-        "BND":  {"market_value":   720.10, "weight": 0.0295, "unrealized_pl":   12.44, "qty": 9.8},
+        "VTI":  {"market_value": 12880.44, "weight": 0.5270, "unrealized_pl": 2040.10},
+        "VXUS": {"market_value":  8521.85, "weight": 0.3487, "unrealized_pl":  720.34},
+        "AVUV": {"market_value":  2318.22, "weight": 0.0948, "unrealized_pl":  218.90},
+        "BND":  {"market_value":   720.10, "weight": 0.0295, "unrealized_pl":   12.44},
     },
+    "target_allocation": {"VTI": 0.50, "VXUS": 0.35, "AVUV": 0.10, "BND": 0.05},
+    "drift_from_target":  {"VTI": 0.027, "VXUS": -0.0013, "AVUV": -0.0052, "BND": -0.0205},
 }
 
 DEMO_HEALTH = {
