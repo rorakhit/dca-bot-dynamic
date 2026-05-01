@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#120e06"/>
+      <stop offset="100%" stop-color="#0a0805"/>
+    </linearGradient>
+    <linearGradient id="amber-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="icon-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1608"/>
+      <stop offset="100%" stop-color="#0f0c05"/>
+    </linearGradient>
+    <linearGradient id="glow-h" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft-glow">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="icon-clip">
+      <rect x="476" y="211" width="248" height="248" rx="40"/>
+    </clipPath>
+    <clipPath id="chart-clip">
+      <rect x="476" y="211" width="248" height="248" rx="40"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg-grad)"/>
+
+  <!-- Grid lines horizontal -->
+  <g opacity="0.04" stroke="#f59e0b" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+  </g>
+  <!-- Grid lines vertical -->
+  <g opacity="0.04" stroke="#f59e0b" stroke-width="1">
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- Horizontal amber glow band behind icon -->
+  <rect x="0" y="250" width="1200" height="130" fill="url(#glow-h)"/>
+
+  <!-- Background chart — left side subtle sparkline -->
+  <g opacity="0.06">
+    <polygon points="0,520 100,470 220,480 340,420 430,380 520,340 600,300 680,260 750,240 820,210 900,190 1000,160 1100,130 1200,110 1200,630 0,630" fill="#f59e0b"/>
+    <polyline points="0,520 100,470 220,480 340,420 430,380 520,340 600,300 680,260 750,240 820,210 900,190 1000,160 1100,130 1200,110" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+  </g>
+
+  <!-- ── ICON ───────────────────────────────── -->
+
+  <!-- Icon shadow/glow -->
+  <rect x="476" y="211" width="248" height="248" rx="40" fill="#f59e0b" opacity="0.04" filter="url(#soft-glow)"/>
+
+  <!-- Icon background -->
+  <rect x="476" y="211" width="248" height="248" rx="40" fill="url(#icon-bg)"/>
+
+  <!-- Icon grid lines -->
+  <g clip-path="url(#icon-clip)" opacity="0.07" stroke="#f59e0b" stroke-width="0.8">
+    <line x1="476" y1="253" x2="724" y2="253"/>
+    <line x1="476" y1="315" x2="724" y2="315"/>
+    <line x1="476" y1="377" x2="724" y2="377"/>
+    <line x1="476" y1="439" x2="724" y2="439"/>
+    <line x1="538" y1="211" x2="538" y2="459"/>
+    <line x1="600" y1="211" x2="600" y2="459"/>
+    <line x1="662" y1="211" x2="662" y2="459"/>
+  </g>
+
+  <!-- Icon chart area fill -->
+  <polygon
+    points="490,420 524,388 558,396 600,358 638,336 676,306 710,268 724,248 724,459 490,459"
+    fill="url(#chart-fill)"
+    clip-path="url(#chart-clip)"
+  />
+
+  <!-- Icon chart line -->
+  <polyline
+    points="490,420 524,388 558,396 600,358 638,336 676,306 710,268 724,248"
+    fill="none"
+    stroke="url(#amber-grad)"
+    stroke-width="3.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    clip-path="url(#chart-clip)"
+    filter="url(#glow)"
+  />
+
+  <!-- Icon data point dots -->
+  <circle cx="524" cy="388" r="3.5" fill="#f59e0b" opacity="0.7"/>
+  <circle cx="600" cy="358" r="3.5" fill="#f59e0b" opacity="0.7"/>
+  <circle cx="638" cy="336" r="3.5" fill="#f59e0b" opacity="0.7"/>
+  <circle cx="676" cy="306" r="3.5" fill="#f59e0b" opacity="0.7"/>
+
+  <!-- Icon tip glow -->
+  <circle cx="710" cy="268" r="10" fill="#f59e0b" opacity="0.12"/>
+  <circle cx="710" cy="268" r="4.5" fill="#f59e0b" filter="url(#glow)"/>
+
+  <!-- Icon border -->
+  <rect x="476" y="211" width="248" height="248" rx="40" fill="none" stroke="rgba(245,158,11,0.25)" stroke-width="1.5"/>
+
+  <!-- ── TEXT ───────────────────────────────── -->
+
+  <!-- DCA DYNAMIC wordmark -->
+  <text
+    x="600" y="520"
+    font-family="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    font-size="36"
+    font-weight="800"
+    letter-spacing="8"
+    text-anchor="middle"
+    fill="#fef3c7"
+  >DCA DYNAMIC</text>
+
+  <!-- Subtitle -->
+  <text
+    x="600" y="556"
+    font-family="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    font-size="15"
+    font-weight="500"
+    letter-spacing="3"
+    text-anchor="middle"
+    fill="#78716c"
+  >AUTOMATED WEALTH ENGINE</text>
+
+  <!-- Pill tags -->
+  <!-- Live pill -->
+  <rect x="497" y="572" width="62" height="24" rx="12" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.25)" stroke-width="1"/>
+  <circle cx="514" cy="584" r="3" fill="#10b981"/>
+  <text x="522" y="589" font-family="'Inter', -apple-system, sans-serif" font-size="10" font-weight="600" letter-spacing="1" fill="#10b981">LIVE</text>
+
+  <!-- Plaid pill -->
+  <rect x="569" y="572" width="65" height="24" rx="12" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.2)" stroke-width="1"/>
+  <text x="601" y="589" font-family="'Inter', -apple-system, sans-serif" font-size="10" font-weight="600" letter-spacing="1" text-anchor="middle" fill="#f59e0b">PLAID</text>
+
+  <!-- Claude pill -->
+  <rect x="644" y="572" width="70" height="24" rx="12" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.2)" stroke-width="1"/>
+  <text x="679" y="589" font-family="'Inter', -apple-system, sans-serif" font-size="10" font-weight="600" letter-spacing="1" text-anchor="middle" fill="#f59e0b">CLAUDE</text>
+
+  <!-- Outer border -->
+  <rect x="1" y="1" width="1198" height="628" rx="0" fill="none" stroke="rgba(245,158,11,0.08)" stroke-width="1"/>
+</svg>
