@@ -8,101 +8,91 @@
       <stop offset="0%" stop-color="#d97706"/>
       <stop offset="100%" stop-color="#fbbf24"/>
     </linearGradient>
-    <linearGradient id="fill-fade" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.22"/>
-      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="glow-radial" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
-    </linearGradient>
-    <radialGradient id="tip-glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.5"/>
-      <stop offset="60%" stop-color="#f59e0b" stop-opacity="0.15"/>
+    <radialGradient id="node-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.6"/>
       <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
     </radialGradient>
-    <filter id="line-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="5" result="blur"/>
+    <radialGradient id="tip-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="dot-glow" x="-100%" y="-100%" width="300%" height="300%">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
+    <filter id="soft">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <clipPath id="rounded">
+    <clipPath id="r">
       <rect width="512" height="512" rx="116"/>
     </clipPath>
   </defs>
 
-  <!-- Background -->
   <rect width="512" height="512" rx="116" fill="url(#bg)"/>
 
-  <!-- Subtle warm vignette -->
-  <rect width="512" height="512" rx="116" fill="url(#glow-radial)" clip-path="url(#rounded)"/>
-
-  <!-- Grid — very faint -->
-  <g clip-path="url(#rounded)" stroke="#f59e0b" stroke-width="0.75" opacity="0.05">
-    <line x1="0" y1="170" x2="512" y2="170"/>
-    <line x1="0" y1="256" x2="512" y2="256"/>
-    <line x1="0" y1="342" x2="512" y2="342"/>
-    <line x1="170" y1="0" x2="170" y2="512"/>
-    <line x1="256" y1="0" x2="256" y2="512"/>
-    <line x1="342" y1="0" x2="342" y2="512"/>
+  <!-- Neural connections — dimmer background edges -->
+  <g clip-path="url(#r)" stroke="#f59e0b" stroke-width="1.5" opacity="0.12" fill="none">
+    <!-- cross-connections -->
+    <line x1="256" y1="96"  x2="136" y2="220"/>
+    <line x1="256" y1="96"  x2="376" y2="220"/>
+    <line x1="136" y1="220" x2="96"  y2="360"/>
+    <line x1="136" y1="220" x2="256" y2="310"/>
+    <line x1="376" y1="220" x2="256" y2="310"/>
+    <line x1="376" y1="220" x2="416" y2="360"/>
+    <line x1="96"  y1="360" x2="256" y2="420"/>
+    <line x1="416" y1="360" x2="256" y2="420"/>
+    <line x1="256" y1="310" x2="256" y2="420"/>
+    <!-- extra diagonals for density -->
+    <line x1="136" y1="220" x2="416" y2="360"/>
+    <line x1="376" y1="220" x2="96"  y2="360"/>
+    <line x1="256" y1="96"  x2="256" y2="310"/>
   </g>
 
-  <!-- Chart area fill -->
-  <polygon
-    clip-path="url(#rounded)"
-    points="80,390 160,340 230,355 300,295 370,258 440,195 440,430 80,430"
-    fill="url(#fill-fade)"
-  />
+  <!-- Main chart path — the "active" neural pathway, rendered as trending line -->
+  <!-- Glow layer -->
+  <polyline clip-path="url(#r)"
+    points="96,360 136,220 256,310 376,220 416,130"
+    fill="none" stroke="#f59e0b" stroke-width="22"
+    stroke-linecap="round" stroke-linejoin="round" opacity="0.08"/>
+  <!-- Line -->
+  <polyline clip-path="url(#r)"
+    points="96,360 136,220 256,310 376,220 416,130"
+    fill="none" stroke="url(#amber-line)" stroke-width="10"
+    stroke-linecap="round" stroke-linejoin="round"
+    filter="url(#glow)"/>
 
-  <!-- Chart line glow layer (blurred duplicate) -->
-  <polyline
-    clip-path="url(#rounded)"
-    points="80,390 160,340 230,355 300,295 370,258 440,195"
-    fill="none"
-    stroke="#f59e0b"
-    stroke-width="28"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    opacity="0.07"
-  />
+  <!-- Nodes -->
+  <!-- Node: 96,360 -->
+  <circle cx="96" cy="360" r="38" fill="url(#node-glow)" clip-path="url(#r)"/>
+  <circle cx="96" cy="360" r="13" fill="#120e05" clip-path="url(#r)"/>
+  <circle cx="96" cy="360" r="7" fill="#d97706" filter="url(#glow)" clip-path="url(#r)"/>
 
-  <!-- Chart line -->
-  <polyline
-    clip-path="url(#rounded)"
-    points="80,390 160,340 230,355 300,295 370,258 440,195"
-    fill="none"
-    stroke="url(#amber-line)"
-    stroke-width="16"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    filter="url(#line-glow)"
-  />
+  <!-- Node: 136,220 -->
+  <circle cx="136" cy="220" r="38" fill="url(#node-glow)" clip-path="url(#r)"/>
+  <circle cx="136" cy="220" r="13" fill="#120e05" clip-path="url(#r)"/>
+  <circle cx="136" cy="220" r="7" fill="#d97706" filter="url(#glow)" clip-path="url(#r)"/>
 
-  <!-- Knot dots — dark ring + amber fill -->
-  <g clip-path="url(#rounded)">
-    <circle cx="160" cy="340" r="13" fill="#0f0b04"/>
-    <circle cx="160" cy="340" r="7.5" fill="#d97706"/>
+  <!-- Node: 256,310 -->
+  <circle cx="256" cy="310" r="38" fill="url(#node-glow)" clip-path="url(#r)"/>
+  <circle cx="256" cy="310" r="13" fill="#120e05" clip-path="url(#r)"/>
+  <circle cx="256" cy="310" r="7" fill="#d97706" filter="url(#glow)" clip-path="url(#r)"/>
 
-    <circle cx="230" cy="355" r="13" fill="#0f0b04"/>
-    <circle cx="230" cy="355" r="7.5" fill="#d97706"/>
+  <!-- Node: 376,220 -->
+  <circle cx="376" cy="220" r="38" fill="url(#node-glow)" clip-path="url(#r)"/>
+  <circle cx="376" cy="220" r="13" fill="#120e05" clip-path="url(#r)"/>
+  <circle cx="376" cy="220" r="7" fill="#d97706" filter="url(#glow)" clip-path="url(#r)"/>
 
-    <circle cx="300" cy="295" r="13" fill="#0f0b04"/>
-    <circle cx="300" cy="295" r="7.5" fill="#d97706"/>
+  <!-- Tip node: 416,130 — brightest, largest glow -->
+  <circle cx="416" cy="130" r="60" fill="url(#tip-glow)" clip-path="url(#r)"/>
+  <circle cx="416" cy="130" r="18" fill="#120e05" clip-path="url(#r)"/>
+  <circle cx="416" cy="130" r="10" fill="#fbbf24" filter="url(#soft)" clip-path="url(#r)"/>
 
-    <circle cx="370" cy="258" r="13" fill="#0f0b04"/>
-    <circle cx="370" cy="258" r="7.5" fill="#d97706"/>
-  </g>
+  <!-- Inactive nodes (off-path) — dimmer -->
+  <circle cx="256" cy="96"  r="9" fill="#d97706" opacity="0.3" clip-path="url(#r)"/>
+  <circle cx="96"  cy="360" r="0"/><!-- already rendered -->
+  <circle cx="416" cy="360" r="9" fill="#d97706" opacity="0.3" clip-path="url(#r)"/>
+  <circle cx="256" cy="420" r="9" fill="#d97706" opacity="0.3" clip-path="url(#r)"/>
 
-  <!-- Tip glow -->
-  <circle cx="440" cy="195" r="52" fill="url(#tip-glow)" clip-path="url(#rounded)"/>
-
-  <!-- Tip dot -->
-  <circle cx="440" cy="195" r="16" fill="#0f0b04" clip-path="url(#rounded)"/>
-  <circle cx="440" cy="195" r="10" fill="#fbbf24" filter="url(#dot-glow)" clip-path="url(#rounded)"/>
-
-  <!-- Inner border -->
-  <rect width="512" height="512" rx="116" fill="none" stroke="rgba(245,158,11,0.18)" stroke-width="2"/>
+  <rect width="512" height="512" rx="116" fill="none" stroke="rgba(245,158,11,0.15)" stroke-width="2"/>
 </svg>
