@@ -74,10 +74,12 @@ MIN_ORDER_USD = 1.00
 ET = ZoneInfo("America/New_York")
 
 BASE_DIR = Path(__file__).parent
-AUDIT_LOG_PATH = BASE_DIR / "audit_log.jsonl"
-PENDING_STORE_PATH = BASE_DIR / "pending_approvals.json"
 _plaid_store_override = os.environ.get("PLAID_STORE_PATH")
 PLAID_STORE_PATH = Path(_plaid_store_override) if _plaid_store_override else BASE_DIR / "plaid_store.json"
+_audit_log_override = os.environ.get("AUDIT_LOG_PATH")
+AUDIT_LOG_PATH = Path(_audit_log_override) if _audit_log_override else BASE_DIR / "audit_log.jsonl"
+_pending_store_override = os.environ.get("PENDING_STORE_PATH")
+PENDING_STORE_PATH = Path(_pending_store_override) if _pending_store_override else BASE_DIR / "pending_approvals.json"
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
