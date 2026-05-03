@@ -16,9 +16,11 @@ Contribution flow (live):
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
+from fastapi.responses import Response
 
 from config import ET, log
 from plaid_routes import router as plaid_router
@@ -105,6 +107,12 @@ app.state.scheduler = scheduler
 
 
 from fastapi import Request
+
+
+@app.get("/icon.svg")
+def serve_icon():
+    svg = (Path(__file__).parent / "icon.svg").read_bytes()
+    return Response(content=svg, media_type="image/svg+xml")
 
 
 @app.get("/health")
