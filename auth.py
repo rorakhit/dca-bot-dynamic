@@ -42,11 +42,13 @@ LOGIN_HTML = """<!DOCTYPE html>
       text-align: center;
     }
     .brand-icon {
-      font-size: 32px;
       margin-bottom: 16px;
-      background: linear-gradient(135deg, #f59e0b, #b45309);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      display: flex;
+      justify-content: center;
+    }
+    .brand-icon img {
+      width: 56px; height: 56px; border-radius: 14px;
+      box-shadow: 0 0 24px rgba(245,158,11,0.3);
     }
     .brand-name {
       font-size: 18px;
@@ -102,7 +104,7 @@ LOGIN_HTML = """<!DOCTYPE html>
 </head>
 <body>
   <div class="card">
-    <div class="brand-icon">◈</div>
+    <div class="brand-icon"><img src="/icon.svg" alt="DCA Dynamic"></div>
     <div class="brand-name">DCA DYNAMIC</div>
     <div class="brand-sub">AUTOMATED WEALTH ENGINE</div>
     <input type="password" id="secret" placeholder="Access key" autocomplete="current-password"/>

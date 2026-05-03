@@ -49,11 +49,10 @@ LANDING_HTML = """<!DOCTYPE html>
     }
     .nav-brand .icon {
       width: 36px; height: 36px; border-radius: 10px;
-      background: linear-gradient(135deg, #f59e0b, #b45309);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
+      overflow: hidden;
       box-shadow: 0 0 16px rgba(245,158,11,0.25);
     }
+    .nav-brand .icon img { width: 36px; height: 36px; display: block; }
     .nav-right {
       display: flex;
       align-items: center;
@@ -310,7 +309,7 @@ LANDING_HTML = """<!DOCTYPE html>
 
 <nav>
   <div class="nav-brand">
-    <div class="icon">◈</div>
+    <div class="icon"><img src="/icon.svg" alt="DCA Dynamic"></div>
     <div>
       <div>DCA DYNAMIC</div>
       <div style="font-size:10px;font-weight:400;color:#78716c;letter-spacing:0.03em;margin-top:1px;">Automated wealth engine</div>
@@ -922,7 +921,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
 <header>
   <div style="display:flex;align-items:center;gap:9px;">
-    <div style="width:30px;height:30px;background:linear-gradient(135deg,#f59e0b,#b45309);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">◈</div>
+    <img src="/icon.svg" alt="DCA Dynamic" style="width:30px;height:30px;border-radius:8px;box-shadow:0 0 12px rgba(245,158,11,0.25);display:block;">
     <div>
       <div style="color:#fef3c7;font-size:14px;font-weight:700;letter-spacing:0.04em;">DCA DYNAMIC</div>
       <div style="color:#78716c;font-size:9px;letter-spacing:0.03em;">Automated wealth engine</div>
